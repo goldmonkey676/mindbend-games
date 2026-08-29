@@ -1,6 +1,7 @@
 {
   "name": "Math 8B Geometry",
   "games": [
+    { "file": "games/geometry-perpendicular-bisector.html", "title": "Signal Line" },
     { "file": "games/distance-and-the-hidden-triangle.html", "title": "Distance & the Hidden Triangle" }
   ]
 }
