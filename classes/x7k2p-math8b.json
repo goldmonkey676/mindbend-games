@@ -1,0 +1,6 @@
+{
+  "name": "Math 8B Geometry",
+  "games": [
+    { "file": "games/distance-and-the-hidden-triangle.html", "title": "Distance & the Hidden Triangle" }
+  ]
+}

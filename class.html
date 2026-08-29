@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Mindbend — Your Class</title>
+<style>
+  :root{
+    --bg-0:#0a1120;
+    --bg-1:#0f1a30;
+    --bg-2:#152142;
+    --panel:rgba(255,255,255,0.045);
+    --panel-hi:rgba(255,255,255,0.07);
+    --panel-border:rgba(255,255,255,0.09);
+    --text:#e9eefb;
+    --text-dim:#8fa0c2;
+    --text-dimmer:#5f6f92;
+    --accent:#5eead4;
+    --accent-soft:rgba(94,234,212,0.18);
+    --gold:#fbbf24;
+    --gold-soft:rgba(251,191,36,0.18);
+    --radius:18px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(1200px 700px at 15% -10%, var(--bg-2), transparent 60%),
+      radial-gradient(1000px 700px at 110% 10%, #1a2550, transparent 55%),
+      var(--bg-0);
+    background-attachment:fixed;
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    touch-action:manipulation;
+    padding:max(24px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(48px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));
+  }
+  .wrap{max-width:760px;margin:0 auto;}
+
+  /* ---------- header ---------- */
+  header{
+    margin:8px 2px 26px;
+  }
+  .kicker{
+    display:flex;align-items:center;gap:9px;
+    font-size:14px;font-weight:600;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--accent);
+    margin-bottom:14px;
+  }
+  .kicker .mark{
+    width:10px;height:10px;border-radius:3px;
+    background:linear-gradient(135deg,var(--accent),#22c1a8);
+    box-shadow:0 0 0 4px var(--accent-soft);
+  }
+  h1{
+    font-size:clamp(28px,5.2vw,42px);
+    line-height:1.15;
+    margin:0;
+    font-weight:750;
+    letter-spacing:-0.01em;
+  }
+  .sub{
+    margin-top:10px;
+    font-size:16px;
+    color:var(--text-dim);
+  }
+
+  /* ---------- game cards ---------- */
+  .games{
+    list-style:none;padding:0;margin:0;
+    display:flex;flex-direction:column;gap:14px;
+  }
+  .card{
+    display:flex;align-items:center;gap:18px;
+    padding:22px 20px;
+    min-height:88px;
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:var(--radius);
+    color:var(--text);
+    text-decoration:none;
+    -webkit-tap-highlight-color:transparent;
+    transition:background .18s ease, border-color .18s ease, transform .12s ease;
+  }
+  .card:active{
+    background:var(--panel-hi);
+    border-color:var(--accent-soft);
+    transform:scale(0.985);
+  }
+  @media (hover:hover){
+    .card:hover{background:var(--panel-hi);border-color:rgba(255,255,255,0.16);}
+  }
+  .card .num{
+    flex:none;
+    width:44px;height:44px;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:12px;
+    background:var(--accent-soft);
+    color:var(--accent);
+    font-size:17px;font-weight:700;
+    font-variant-numeric:tabular-nums;
+  }
+  .card .body{min-width:0;flex:1;}
+  .card .title{
+    font-size:20px;font-weight:650;line-height:1.3;
+    letter-spacing:-0.005em;
+  }
+  .card .meta{
+    margin-top:4px;
+    font-size:13.5px;color:var(--text-dimmer);
+  }
+  .card:first-child .num{
+    background:var(--gold-soft);color:var(--gold);
+  }
+  .card:first-child .meta{color:var(--gold);}
+  .card .chev{
+    flex:none;color:var(--text-dimmer);
+    font-size:22px;line-height:1;
+  }
+
+  /* ---------- states: loading / message ---------- */
+  .state{
+    margin-top:14px;
+    padding:34px 26px;
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:var(--radius);
+    text-align:center;
+  }
+  .state .icon{font-size:40px;line-height:1;margin-bottom:14px;}
+  .state h2{
+    margin:0 0 8px;
+    font-size:21px;font-weight:700;
+  }
+  .state p{
+    margin:0 auto;
+    max-width:44ch;
+    font-size:15.5px;line-height:1.55;
+    color:var(--text-dim);
+  }
+  .state code{
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    font-size:13.5px;
+    background:rgba(255,255,255,0.06);
+    padding:2px 6px;border-radius:6px;
+    color:var(--text);
+  }
+  .spinner{
+    width:30px;height:30px;margin:0 auto;
+    border-radius:50%;
+    border:3px solid rgba(255,255,255,0.12);
+    border-top-color:var(--accent);
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @media (prefers-reduced-motion:reduce){
+    .spinner{animation-duration:2s;}
+    .card:active{transform:none;}
+  }
+
+  footer{
+    margin-top:34px;
+    text-align:center;
+    font-size:12.5px;
+    color:var(--text-dimmer);
+    letter-spacing:.03em;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="kicker"><span class="mark"></span>Mindbend</div>
+      <h1 id="class-name">Loading your class…</h1>
+      <div class="sub" id="class-sub" hidden></div>
+    </header>
+
+    <main id="content">
+      <div class="state">
+        <div class="spinner"></div>
+      </div>
+    </main>
+
+    <footer>Mindbend · math you can play with</footer>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  var content = document.getElementById("content");
+  var nameEl = document.getElementById("class-name");
+  var subEl = document.getElementById("class-sub");
+
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  function showState(icon, heading, message){
+    nameEl.textContent = heading;
+    document.title = "Mindbend — " + heading;
+    content.innerHTML =
+      '<div class="state">' +
+        '<div class="icon">' + icon + '</div>' +
+        '<h2>' + esc(heading) + '</h2>' +
+        '<p>' + message + '</p>' +
+      '</div>';
+  }
+
+  function getId(){
+    var m = window.location.search.match(/[?&]id=([^&]*)/);
+    if(!m) return null;
+    var raw = decodeURIComponent(m[1]).trim();
+    // class ids are simple slugs: lowercase letters, digits, dashes.
+    if(!/^[a-z0-9][a-z0-9-]*$/.test(raw)) return null;
+    return raw;
+  }
+
+  function renderClass(data){
+    var className = (data && typeof data.name === "string" && data.name.trim())
+      ? data.name.trim() : "Your class";
+    nameEl.textContent = className;
+    document.title = "Mindbend — " + className;
+
+    var games = (data && Array.isArray(data.games)) ? data.games.filter(function(g){
+      return g && typeof g.file === "string" && g.file;
+    }) : [];
+
+    if(games.length === 0){
+      subEl.hidden = true;
+      content.innerHTML =
+        '<div class="state">' +
+          '<div class="icon">🗓️</div>' +
+          '<h2>No games yet</h2>' +
+          '<p>Your teacher hasn’t added any games to this class yet. ' +
+          'Check back soon.</p>' +
+        '</div>';
+      return;
+    }
+
+    subEl.textContent = games.length === 1
+      ? "1 game" : games.length + " games";
+    subEl.hidden = false;
+
+    // Games are authored newest-first in the JSON, so array order is display order.
+    var html = '<ul class="games">';
+    for(var i = 0; i < games.length; i++){
+      var g = games[i];
+      var title = (typeof g.title === "string" && g.title.trim())
+        ? g.title.trim() : g.file.split("/").pop().replace(/\.html?$/i, "");
+      var meta = i === 0 ? "This week’s game" : "";
+      html +=
+        '<li>' +
+          '<a class="card" href="' + esc(g.file) + '">' +
+            '<span class="num">' + (i + 1) + '</span>' +
+            '<span class="body">' +
+              '<span class="title">' + esc(title) + '</span>' +
+              (meta ? '<span class="meta">' + meta + '</span>' : '') +
+            '</span>' +
+            '<span class="chev" aria-hidden="true">&rsaquo;</span>' +
+          '</a>' +
+        '</li>';
+    }
+    html += '</ul>';
+    content.innerHTML = html;
+  }
+
+  var id = getId();
+
+  if(!id){
+    showState("🔗", "This link looks incomplete",
+      "Open the class link your teacher gave you — it should end with " +
+      "something like <code>?id=your-class</code>. Ask your teacher to send " +
+      "it again if you’re not sure.");
+    return;
+  }
+
+  fetch("classes/" + id + ".json", {cache:"no-cache"})
+    .then(function(res){
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      return res.json();
+    })
+    .then(function(data){
+      renderClass(data);
+    })
+    .catch(function(){
+      showState("🤔", "We couldn’t find that class",
+        "The class <code>" + esc(id) + "</code> doesn’t seem to exist. " +
+        "Double-check the link from your teacher, or ask them to share it again.");
+    });
+})();
+</script>
+</body>
+</html>
