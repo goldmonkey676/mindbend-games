@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Distance &amp; the Hidden Triangle</title>
+<style>
+  :root{
+    --bg-0:#0a1120;
+    --bg-1:#0f1a30;
+    --bg-2:#152142;
+    --panel:rgba(255,255,255,0.045);
+    --panel-border:rgba(255,255,255,0.09);
+    --text:#e9eefb;
+    --text-dim:#8fa0c2;
+    --text-dimmer:#5f6f92;
+    --accent:#5eead4;
+    --accent-soft:rgba(94,234,212,0.18);
+    --gold:#fbbf24;
+    --gold-soft:rgba(251,191,36,0.18);
+    --coral:#fb7c8d;
+    --success:#4ade80;
+    --success-soft:rgba(74,222,128,0.18);
+    --danger:#fb7185;
+    --grid-line:rgba(255,255,255,0.08);
+    --axis-line:rgba(255,255,255,0.24);
+    --radius:18px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(1200px 700px at 15% -10%, var(--bg-2), transparent 60%),
+      radial-gradient(1000px 700px at 110% 10%, #1a2550, transparent 55%),
+      var(--bg-0);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    touch-action:manipulation;
+    padding:18px 14px 40px;
+  }
+  .wrap{max-width:980px;margin:0 auto;}
+
+  /* ---------- header ---------- */
+  header{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:8px 20px;
+    margin-bottom:14px;
+  }
+  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand-mark{
+    font-size:13px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:700;
+  }
+  h1{
+    font-size:clamp(20px,3.4vw,28px);
+    margin:0;
+    font-weight:800;
+    letter-spacing:-0.01em;
+  }
+  .subtitle{
+    font-size:13px;
+    color:var(--text-dim);
+    margin:2px 0 0;
+  }
+
+  .level-dots{
+    display:flex;
+    gap:10px;
+    align-items:center;
+  }
+  .level-dot{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:5px;
+    background:none;
+    border:none;
+    color:var(--text-dimmer);
+    font-family:inherit;
+    cursor:not-allowed;
+    padding:2px;
+  }
+  .level-dot .dot{
+    width:11px;height:11px;border-radius:50%;
+    background:rgba(255,255,255,0.12);
+    border:2px solid rgba(255,255,255,0.18);
+    transition:all .25s ease;
+  }
+  .level-dot .num{font-size:10px; font-weight:700;}
+  .level-dot.unlocked{cursor:pointer; color:var(--text-dim);}
+  .level-dot.unlocked:hover .dot{border-color:var(--accent);}
+  .level-dot.current{color:var(--text);}
+  .level-dot.current .dot{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);}
+  .level-dot.complete .dot{background:var(--success);border-color:var(--success);}
+
+  /* ---------- learning banner ---------- */
+  .learn-banner{
+    background:linear-gradient(135deg, var(--gold-soft), rgba(251,191,36,0.04));
+    border:1px solid rgba(251,191,36,0.35);
+    border-radius:14px;
+    padding:10px 16px;
+    font-size:14px;
+    margin-bottom:16px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .learn-banner b{color:var(--gold); font-weight:700;}
+  .learn-banner .level-name{color:var(--text-dim); font-size:12.5px; margin-left:auto;}
+
+  .hint-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+    margin:0 0 10px;
+  }
+  .hint{
+    font-size:13px;
+    color:var(--text-dim);
+    margin:0;
+    padding-left:2px;
+    flex:1 1 auto;
+  }
+  button.ghost-btn{
+    appearance:none;
+    border:1px solid var(--panel-border);
+    background:rgba(255,255,255,0.03);
+    color:var(--text-dim);
+    font-weight:700;
+    font-size:12.5px;
+    padding:8px 14px;
+    border-radius:999px;
+    cursor:pointer;
+    font-family:inherit;
+    white-space:nowrap;
+    transition:background .2s ease, color .2s ease, opacity .2s ease, border-color .2s ease;
+  }
+  button.ghost-btn:hover{color:var(--text); border-color:rgba(255,255,255,0.22);}
+  button.ghost-btn:active{transform:scale(0.97);}
+  button.ghost-btn.hidden-btn{visibility:hidden;}
+  button.ghost-btn.active{color:var(--gold); border-color:rgba(251,191,36,0.5); background:var(--gold-soft);}
+
+  .hint-bubble{
+    display:none;
+    background:rgba(94,234,212,0.08);
+    border:1px solid rgba(94,234,212,0.3);
+    border-radius:12px;
+    padding:10px 14px;
+    font-size:13px;
+    color:var(--text);
+    margin:0 0 14px;
+  }
+  .hint-bubble.show{display:block;}
+  .hint-bubble b{color:var(--accent);}
+
+  .hidden{display:none !important;}
+
+  /* ---------- stage ---------- */
+  .stage-wrap{
+    display:flex;
+    gap:18px;
+    flex-wrap:wrap;
+    align-items:flex-start;
+    justify-content:center;
+  }
+  .stage-card{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:var(--radius);
+    padding:10px;
+    flex:1 1 520px;
+    max-width:640px;
+    position:relative;
+    box-shadow:0 20px 50px -25px rgba(0,0,0,0.6);
+    transition:box-shadow .3s ease;
+  }
+  .stage-card.solved{
+    box-shadow:0 0 0 2px var(--success), 0 20px 60px -20px rgba(74,222,128,0.35);
+  }
+  svg#stage{
+    width:100%;
+    height:auto;
+    display:block;
+    touch-action:none;
+    border-radius:12px;
+  }
+  .readout-card{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:var(--radius);
+    padding:16px 18px;
+    flex:1 1 240px;
+    max-width:290px;
+    min-width:220px;
+  }
+  .readout-card h3{
+    margin:0 0 12px;
+    font-size:12px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--text-dimmer);
+    font-weight:700;
+  }
+  .readout-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    padding:7px 0;
+    border-bottom:1px dashed rgba(255,255,255,0.08);
+    font-size:13.5px;
+    gap:10px;
+  }
+  .readout-row:last-child{border-bottom:none;}
+  .readout-row .rl{color:var(--text-dim);}
+  .readout-row .rv{
+    font-variant-numeric:tabular-nums;
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    font-weight:700;
+    color:var(--text);
+    white-space:nowrap;
+  }
+  .readout-row.hl .rv{color:var(--accent);}
+  .readout-row.target .rv{color:var(--gold);}
+  .readout-row.match .rv{color:var(--success);}
+
+  .balance-meter{
+    margin-top:6px;
+    padding-top:10px;
+  }
+  .balance-track{
+    position:relative;
+    height:10px;
+    border-radius:6px;
+    background:rgba(255,255,255,0.08);
+    overflow:visible;
+    margin:10px 2px 4px;
+  }
+  .balance-track .center-mark{
+    position:absolute; left:50%; top:-3px; width:2px; height:16px;
+    background:rgba(255,255,255,0.25); transform:translateX(-1px);
+  }
+  .balance-needle{
+    position:absolute;
+    top:-5px;
+    width:20px;height:20px;
+    border-radius:50%;
+    background:var(--coral);
+    left:50%;
+    transform:translateX(-50%);
+    transition:left .06s linear, background .2s ease;
+    box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  }
+  .balance-needle.balanced{background:var(--success);}
+  .balance-labels{display:flex; justify-content:space-between; font-size:11px; color:var(--text-dimmer);}
+
+  /* ---------- footer controls ---------- */
+  .foot-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:16px;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .round-tag{
+    font-size:12.5px;
+    color:var(--text-dimmer);
+    font-weight:600;
+    letter-spacing:0.02em;
+  }
+  button.next-btn{
+    appearance:none;
+    border:none;
+    background:linear-gradient(135deg,var(--accent),#22c1a8);
+    color:#04241f;
+    font-weight:800;
+    font-size:15px;
+    padding:12px 22px;
+    border-radius:999px;
+    cursor:pointer;
+    box-shadow:0 10px 25px -8px rgba(94,234,212,0.55);
+    opacity:0;
+    transform:translateY(6px) scale(0.96);
+    pointer-events:none;
+    transition:opacity .35s ease, transform .35s ease;
+    font-family:inherit;
+  }
+  button.next-btn.show{
+    opacity:1;
+    transform:translateY(0) scale(1);
+    pointer-events:auto;
+  }
+  button.next-btn:active{transform:scale(0.96);}
+
+  /* ---------- completion screen ---------- */
+  .complete-screen{
+    text-align:center;
+    padding:60px 20px;
+    display:none;
+  }
+  .complete-screen.show{display:block;}
+  .complete-screen .big{font-size:44px; margin-bottom:6px;}
+  .complete-screen h2{font-size:24px; margin:6px 0 10px;}
+  .complete-screen p{color:var(--text-dim); max-width:520px; margin:0 auto 8px; font-size:14.5px; line-height:1.5;}
+  .recap{
+    text-align:left;
+    max-width:480px;
+    margin:26px auto 0;
+    display:grid;
+    gap:10px;
+  }
+  .recap-item{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:12px;
+    padding:12px 14px;
+    font-size:13.5px;
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+  }
+  .recap-item .n{color:var(--gold); font-weight:800;}
+
+  .app-body.hidden{display:none;}
+
+  /* ---------- per-level recap screen ---------- */
+  .recap-screen{
+    display:flex;
+    justify-content:center;
+    padding:6px 0 10px;
+  }
+  .recap-card{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:var(--radius);
+    padding:28px 30px 30px;
+    max-width:600px;
+    width:100%;
+    text-align:center;
+    box-shadow:0 20px 50px -25px rgba(0,0,0,0.6);
+    animation:recapIn .4s ease;
+  }
+  @keyframes recapIn{
+    from{opacity:0; transform:translateY(10px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+  .recap-tag{
+    font-size:12px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--success);
+    font-weight:800;
+    margin-bottom:6px;
+  }
+  .recap-card h2{
+    font-size:19px;
+    margin:0 0 16px;
+    font-weight:800;
+  }
+  .recap-diagram-wrap{
+    background:rgba(255,255,255,0.03);
+    border-radius:14px;
+    padding:10px;
+    margin-bottom:16px;
+  }
+  svg#recapSvg{width:100%; height:auto; display:block;}
+  .recap-card p{
+    color:var(--text-dim);
+    font-size:14px;
+    line-height:1.55;
+    max-width:480px;
+    margin:0 auto 22px;
+  }
+
+  @media (max-width:640px){
+    .stage-card, .readout-card{max-width:100%;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div>
+        <div class="brand-mark">Mindbend</div>
+        <h1>Distance &amp; the Hidden Triangle</h1>
+        <p class="subtitle">Segments &amp; Angles · drag, don't compute</p>
+      </div>
+    </div>
+    <div class="level-dots" id="levelDots"></div>
+  </header>
+
+  <div class="app-body" id="appBody">
+    <div class="learn-banner">
+      <span>You're learning: <b id="learnText">—</b></span>
+      <span class="level-name" id="levelName"></span>
+    </div>
+    <div class="hint-row">
+      <p class="hint" id="hintText"></p>
+      <button class="ghost-btn" id="hintBtn">💡 Hint</button>
+    </div>
+    <div class="hint-bubble" id="hintBubble"></div>
+
+    <div id="playArea">
+      <div class="stage-wrap">
+        <div class="stage-card" id="stageCard">
+          <svg id="stage" viewBox="0 0 760 460" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <div class="readout-card">
+          <h3>Live readout</h3>
+          <div id="readout"></div>
+          <div id="balanceMeterWrap" style="display:none;">
+            <div class="balance-meter">
+              <div class="balance-labels"><span>closer to A</span><span>closer to B</span></div>
+              <div class="balance-track">
+                <div class="center-mark"></div>
+                <div class="balance-needle" id="balanceNeedle"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="foot-row">
+        <button class="ghost-btn" id="backBtn">← Back</button>
+        <span class="round-tag" id="roundTag"></span>
+        <button class="next-btn" id="nextBtn">Next →</button>
+      </div>
+    </div>
+
+    <div class="recap-screen hidden" id="recapScreen">
+      <div class="recap-card">
+        <div class="recap-tag" id="recapTag">Level complete</div>
+        <h2 id="recapTitle"></h2>
+        <div class="recap-diagram-wrap">
+          <svg id="recapSvg" viewBox="0 0 520 200" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <p id="recapDesc"></p>
+        <button class="next-btn show" id="continueBtn">Continue →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="complete-screen" id="completeScreen">
+    <div class="big">🎉</div>
+    <h2>You mapped it all out.</h2>
+    <p>Four different ways distance shows up — and it was the same idea underneath every time.</p>
+    <div class="recap">
+      <div class="recap-item"><span class="n">1</span><span>On a line, distance is just the gap between two numbers — and there are always two spots the same distance away.</span></div>
+      <div class="recap-item"><span class="n">2</span><span>On a grid, the straight-line distance is the hypotenuse of the right triangle made from the horizontal and vertical steps.</span></div>
+      <div class="recap-item"><span class="n">3</span><span>Every point equally far from two spots lines up perfectly straight — that line is the perpendicular bisector.</span></div>
+      <div class="recap-item"><span class="n">4</span><span>The same triangle works at any scale — grid units convert straight into real-world distance.</span></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  var STAGE_W = 760, STAGE_H = 460;
+
+  var svg = document.getElementById("stage");
+  var stageCard = document.getElementById("stageCard");
+  var readoutEl = document.getElementById("readout");
+  var learnText = document.getElementById("learnText");
+  var levelNameEl = document.getElementById("levelName");
+  var hintText = document.getElementById("hintText");
+  var roundTag = document.getElementById("roundTag");
+  var nextBtn = document.getElementById("nextBtn");
+  var backBtn = document.getElementById("backBtn");
+  var hintBtn = document.getElementById("hintBtn");
+  var hintBubble = document.getElementById("hintBubble");
+  var levelDotsEl = document.getElementById("levelDots");
+  var appBody = document.getElementById("appBody");
+  var playArea = document.getElementById("playArea");
+  var completeScreen = document.getElementById("completeScreen");
+  var balanceMeterWrap = document.getElementById("balanceMeterWrap");
+  var balanceNeedle = document.getElementById("balanceNeedle");
+  var recapScreen = document.getElementById("recapScreen");
+  var recapTag = document.getElementById("recapTag");
+  var recapTitle = document.getElementById("recapTitle");
+  var recapDesc = document.getElementById("recapDesc");
+  var recapSvg = document.getElementById("recapSvg");
+  var continueBtn = document.getElementById("continueBtn");
+
+  // ---------------- helpers ----------------
+
+  function el(tag, attrs){
+    var e = document.createElementNS(SVG_NS, tag);
+    for (var k in attrs){ e.setAttribute(k, attrs[k]); }
+    return e;
+  }
+  function clearSvg(){ while(svg.firstChild) svg.removeChild(svg.firstChild); }
+  function clearRecapSvg(){ while(recapSvg.firstChild) recapSvg.removeChild(recapSvg.firstChild); }
+  function fmt(n, d){
+    if (d === undefined) d = 2;
+    var v = Math.round(n * Math.pow(10,d)) / Math.pow(10,d);
+    if (Object.is(v,-0)) v = 0;
+    return v.toFixed(d).replace(/\.00$/,"").replace(/(\.\d)0$/,"$1");
+  }
+  function clamp(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
+  function dist(x1,y1,x2,y2){ return Math.hypot(x2-x1, y2-y1); }
+
+  function svgPoint(evt){
+    var pt = svg.createSVGPoint();
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    var ctm = svg.getScreenCTM().inverse();
+    return pt.matrixTransform(ctm);
+  }
+
+  function makeTransform(xMin,xMax,yMin,yMax,padding){
+    padding = padding===undefined ? 54 : padding;
+    var w = STAGE_W - padding*2, h = STAGE_H - padding*2;
+    var scale = Math.min(w/(xMax-xMin), h/(yMax-yMin));
+    var spanX = (xMax-xMin)*scale, spanY = (yMax-yMin)*scale;
+    var offX = (STAGE_W - spanX)/2, offY = (STAGE_H - spanY)/2;
+    return {
+      scale: scale,
+      toX: function(gx){ return offX + (gx - xMin)*scale; },
+      toY: function(gy){ return STAGE_H - (offY + (gy - yMin)*scale); },
+      toGX: function(px){ return xMin + (px - offX)/scale; },
+      toGY: function(py){ return yMin + (STAGE_H - py - offY)/scale; }
+    };
+  }
+
+  function drawGrid(t, xMin,xMax,yMin,yMax, step){
+    step = step || 1;
+    var g = el("g", {});
+    for (var x = Math.ceil(xMin/step)*step; x <= xMax+0.001; x += step){
+      var isAxis = Math.abs(x) < 0.001;
+      g.appendChild(el("line", {
+        x1:t.toX(x), y1:t.toY(yMin), x2:t.toX(x), y2:t.toY(yMax),
+        stroke: isAxis ? "var(--axis-line)" : "var(--grid-line)",
+        "stroke-width": isAxis ? 1.5 : 1
+      }));
+    }
+    for (var y = Math.ceil(yMin/step)*step; y <= yMax+0.001; y += step){
+      var isAxisY = Math.abs(y) < 0.001;
+      g.appendChild(el("line", {
+        x1:t.toX(xMin), y1:t.toY(y), x2:t.toX(xMax), y2:t.toY(y),
+        stroke: isAxisY ? "var(--axis-line)" : "var(--grid-line)",
+        "stroke-width": isAxisY ? 1.5 : 1
+      }));
+    }
+    svg.appendChild(g);
+  }
+
+  function attachDrag(hitEl, onMove, onEnd){
+    var dragging = false;
+    hitEl.style.cursor = "grab";
+    hitEl.addEventListener("pointerdown", function(evt){
+      dragging = true;
+      hitEl.setPointerCapture(evt.pointerId);
+      hitEl.style.cursor = "grabbing";
+      onMove(svgPoint(evt), evt);
+      evt.preventDefault();
+    });
+    hitEl.addEventListener("pointermove", function(evt){
+      if (!dragging) return;
+      onMove(svgPoint(evt), evt);
+      evt.preventDefault();
+    });
+    function end(evt){
+      if (!dragging) return;
+      dragging = false;
+      hitEl.style.cursor = "grab";
+      if (onEnd) onEnd(evt);
+    }
+    hitEl.addEventListener("pointerup", end);
+    hitEl.addEventListener("pointercancel", end);
+  }
+
+  function makePoint(cx, cy, color, labelStr, labelDx, labelDy, draggable){
+    var g = el("g", {});
+    if (draggable){
+      g.appendChild(el("circle", {cx:cx, cy:cy, r:22, fill:"transparent"}));
+    }
+    var ring = el("circle", {cx:cx, cy:cy, r:9, fill:color, stroke:"#0a1120", "stroke-width":2.5});
+    g.appendChild(ring);
+    if (labelStr){
+      var t = el("text", {
+        x: cx + (labelDx||0), y: cy + (labelDy||-14),
+        fill:"#e9eefb", "font-size":14, "font-weight":700,
+        "text-anchor":"middle", "font-family":"inherit"
+      });
+      t.textContent = labelStr;
+      g.appendChild(t);
+    }
+    svg.appendChild(g);
+    return {g:g, ring:ring, setPos:function(x,y){
+      g.querySelector("circle").setAttribute("cx",x);
+      g.querySelector("circle").setAttribute("cy",y);
+      ring.setAttribute("cx",x); ring.setAttribute("cy",y);
+      if (labelStr){
+        var txt = g.querySelector("text");
+        txt.setAttribute("x", x+(labelDx||0));
+        txt.setAttribute("y", y+(labelDy||-14));
+      }
+    }};
+  }
+
+  function readoutHTML(rows){
+    return rows.map(function(r){
+      var cls = "readout-row" + (r.cls ? " "+r.cls : "");
+      return '<div class="'+cls+'"><span class="rl">'+r.l+'</span><span class="rv">'+r.v+'</span></div>';
+    }).join("");
+  }
+
+  // ---------------- level state ----------------
+
+  var state = { levelIdx:0, roundIdx:0, locked:false, maxUnlocked:0, trail:[] };
+
+  function markSolved(){
+    if (state.locked) return;
+    state.locked = true;
+    stageCard.classList.add("solved");
+    var lvl = LEVELS[state.levelIdx];
+    var isLastRound = state.roundIdx === lvl.rounds.length - 1;
+    var isLastLevel = state.levelIdx === LEVELS.length - 1;
+    nextBtn.textContent = isLastRound ? (isLastLevel ? "Finish 🎉" : "Next level →") : "Next →";
+    nextBtn.classList.add("show");
+  }
+
+  nextBtn.addEventListener("click", function(){
+    var lvl = LEVELS[state.levelIdx];
+    if (state.roundIdx < lvl.rounds.length - 1){
+      state.roundIdx += 1;
+      loadRound();
+    } else {
+      showRecap(state.levelIdx);
+    }
+  });
+
+  backBtn.addEventListener("click", function(){
+    if (state.roundIdx > 0){
+      state.roundIdx -= 1;
+      loadRound();
+    } else if (state.levelIdx > 0){
+      state.levelIdx -= 1;
+      state.roundIdx = LEVELS[state.levelIdx].rounds.length - 1;
+      loadRound();
+    }
+  });
+
+  hintBtn.addEventListener("click", function(){
+    hintBubble.classList.toggle("show");
+    hintBtn.classList.toggle("active", hintBubble.classList.contains("show"));
+  });
+
+  function showRecap(levelIdx){
+    playArea.classList.add("hidden");
+    recapScreen.classList.remove("hidden");
+    renderRecap(levelIdx);
+  }
+
+  continueBtn.addEventListener("click", function(){
+    recapScreen.classList.add("hidden");
+    var finishedIdx = state.levelIdx;
+    if (finishedIdx < LEVELS.length - 1){
+      playArea.classList.remove("hidden");
+      state.levelIdx += 1;
+      state.roundIdx = 0;
+      state.maxUnlocked = Math.max(state.maxUnlocked, state.levelIdx);
+      renderLevelDots();
+      loadRound();
+    } else {
+      appBody.classList.add("hidden");
+      completeScreen.classList.add("show");
+    }
+  });
+
+  function renderLevelDots(){
+    levelDotsEl.innerHTML = "";
+    LEVELS.forEach(function(lvl, i){
+      var btn = document.createElement("button");
+      btn.className = "level-dot";
+      if (i <= state.maxUnlocked) btn.classList.add("unlocked");
+      if (i === state.levelIdx) btn.classList.add("current");
+      if (i < state.levelIdx) btn.classList.add("complete");
+      btn.innerHTML = '<span class="dot"></span><span class="num">'+(i+1)+'</span>';
+      if (i <= state.maxUnlocked){
+        btn.addEventListener("click", function(){
+          recapScreen.classList.add("hidden");
+          playArea.classList.remove("hidden");
+          appBody.classList.remove("hidden");
+          completeScreen.classList.remove("show");
+          state.levelIdx = i; state.roundIdx = 0; loadRound();
+        });
+      }
+      levelDotsEl.appendChild(btn);
+    });
+  }
+
+  function loadRound(){
+    state.locked = false;
+    state.trail = [];
+    stageCard.classList.remove("solved");
+    nextBtn.classList.remove("show");
+    balanceMeterWrap.style.display = "none";
+    clearSvg();
+    var lvl = LEVELS[state.levelIdx];
+    var round = lvl.rounds[state.roundIdx];
+    learnText.textContent = lvl.learn;
+    levelNameEl.textContent = "Level " + (state.levelIdx+1) + " · " + lvl.title;
+    hintText.textContent = round.instruction || lvl.hint;
+    hintBubble.textContent = round.roundHint || "";
+    hintBubble.classList.remove("show");
+    hintBtn.classList.remove("active");
+    roundTag.textContent = "Round " + (state.roundIdx+1) + " of " + lvl.rounds.length;
+    backBtn.classList.toggle("hidden-btn", state.levelIdx===0 && state.roundIdx===0);
+    renderLevelDots();
+    lvl.setup(round);
+  }
+
+  // ================= LEVEL 1 — Walk the Line =================
+
+  function setupLevel1(round){
+    if (round.mode === "midpoint") { setupLevel1Midpoint(round); return; }
+
+    var xMin=-11, xMax=11;
+    var t = makeTransform(xMin, xMax, -1, 1, 60);
+    var y0 = STAGE_H/2 + 30;
+    // override toY to fixed line
+    t.toY = function(){ return y0; };
+
+    // axis line
+    svg.appendChild(el("line", {x1:t.toX(xMin), y1:y0, x2:t.toX(xMax), y2:y0, stroke:"var(--axis-line)", "stroke-width":2}));
+    // ticks
+    for (var x=Math.ceil(xMin); x<=xMax; x++){
+      var major = (x % 5 === 0);
+      svg.appendChild(el("line", {x1:t.toX(x), y1:y0-(major?10:6), x2:t.toX(x), y2:y0+(major?10:6), stroke:"var(--grid-line)", "stroke-width":1}));
+      if (major){
+        var lbl = el("text", {x:t.toX(x), y:y0+28, "text-anchor":"middle", "font-size":12, fill:"var(--text-dimmer)"});
+        lbl.textContent = x;
+        svg.appendChild(lbl);
+      }
+    }
+
+    var segLine = el("line", {x1:0,y1:y0,x2:0,y2:y0, stroke:"var(--coral)", "stroke-width":5, "stroke-linecap":"round"});
+    svg.insertBefore(segLine, svg.firstChild.nextSibling);
+    var gapLabel = el("text", {x:0, y:y0-22, "text-anchor":"middle", "font-size":15, "font-weight":800, fill:"var(--coral)"});
+    svg.appendChild(gapLabel);
+
+    var ghost = null;
+
+    var A = round.a, target = round.target;
+    var startP = A + (A + 3 <= xMax-1 ? 3 : -3);
+    var P = clamp(startP, xMin+1, xMax-1);
+
+    var pointA = makePoint(t.toX(A), y0, "var(--gold)", "A", 0, 28);
+    var pointP = makePoint(t.toX(P), y0, "var(--accent)", "P", 0, -20, true);
+
+    function update(){
+      var gap = Math.abs(P - A);
+      segLine.setAttribute("x1", t.toX(A));
+      segLine.setAttribute("x2", t.toX(P));
+      var solved = Math.round(gap) === target;
+      segLine.setAttribute("stroke", solved ? "var(--success)" : "var(--coral)");
+      gapLabel.setAttribute("x", (t.toX(A)+t.toX(P))/2);
+      gapLabel.setAttribute("fill", solved ? "var(--success)" : "var(--coral)");
+      gapLabel.textContent = fmt(gap,1);
+
+      readoutEl.innerHTML = readoutHTML([
+        {l:"Point A", v:A},
+        {l:"Point P", v:fmt(P,1), cls:"hl"},
+        {l:"Distance |P − A|", v:fmt(gap,1), cls: solved?"match":""},
+        {l:"Target distance", v:target, cls:"target"}
+      ]);
+
+      if (solved && !state.locked){
+        markSolved();
+        var mirror = A - (P - A);
+        if (mirror >= xMin && mirror <= xMax && !ghost){
+          ghost = makePoint(t.toX(mirror), y0, "rgba(94,234,212,0.55)", "also works!", 0, 24);
+        }
+      }
+    }
+
+    attachDrag(pointP.g, function(pt){
+      if (state.locked) return;
+      var gx = clamp(Math.round(t.toGX(pt.x)), xMin+1, xMax-1);
+      P = gx;
+      pointP.setPos(t.toX(P), y0);
+      update();
+    });
+
+    update();
+  }
+
+  function setupLevel1Midpoint(round){
+    var xMin=-11, xMax=11;
+    var t = makeTransform(xMin, xMax, -1, 1, 60);
+    var y0 = STAGE_H/2 + 30;
+    t.toY = function(){ return y0; };
+
+    svg.appendChild(el("line", {x1:t.toX(xMin), y1:y0, x2:t.toX(xMax), y2:y0, stroke:"var(--axis-line)", "stroke-width":2}));
+    for (var x=Math.ceil(xMin); x<=xMax; x++){
+      var major = (x % 5 === 0);
+      svg.appendChild(el("line", {x1:t.toX(x), y1:y0-(major?10:6), x2:t.toX(x), y2:y0+(major?10:6), stroke:"var(--grid-line)", "stroke-width":1}));
+      if (major){
+        var lbl = el("text", {x:t.toX(x), y:y0+28, "text-anchor":"middle", "font-size":12, fill:"var(--text-dimmer)"});
+        lbl.textContent = x;
+        svg.appendChild(lbl);
+      }
+    }
+
+    var M = round.m, P = round.p;
+    var spanLine = el("line", {x1:t.toX(M), y1:y0, x2:t.toX(P), y2:y0, stroke:"rgba(255,255,255,0.28)", "stroke-width":3, "stroke-linecap":"round"});
+    svg.insertBefore(spanLine, svg.firstChild.nextSibling);
+
+    var lineNM = el("line", {stroke:"rgba(251,191,36,0.6)", "stroke-width":3});
+    var lineNP = el("line", {stroke:"rgba(251,124,141,0.6)", "stroke-width":3});
+    svg.appendChild(lineNM); svg.appendChild(lineNP);
+
+    var N0 = clamp(Math.round((M+P)/2) + (Math.abs(P-M) > 4 ? 3 : 2), xMin+1, xMax-1);
+    var N = N0;
+
+    var pointM = makePoint(t.toX(M), y0, "var(--gold)", "M", 0, 28);
+    var pointP = makePoint(t.toX(P), y0, "var(--coral)", "P", 0, 28);
+    var pointN = makePoint(t.toX(N), y0, "var(--accent)", "N", 0, -20, true);
+
+    function update(){
+      lineNM.setAttribute("x1", t.toX(N)); lineNM.setAttribute("y1", y0-14);
+      lineNM.setAttribute("x2", t.toX(M)); lineNM.setAttribute("y2", y0-14);
+      lineNP.setAttribute("x1", t.toX(N)); lineNP.setAttribute("y1", y0+14);
+      lineNP.setAttribute("x2", t.toX(P)); lineNP.setAttribute("y2", y0+14);
+
+      var dNM = Math.abs(N-M), dNP = Math.abs(N-P);
+      var solved = dNM === dNP;
+      lineNM.setAttribute("stroke", solved ? "var(--success)" : "rgba(251,191,36,0.6)");
+      lineNP.setAttribute("stroke", solved ? "var(--success)" : "rgba(251,124,141,0.6)");
+      pointN.ring.setAttribute("fill", solved ? "var(--success)" : "var(--accent)");
+
+      readoutEl.innerHTML = readoutHTML([
+        {l:"Point M", v:M},
+        {l:"Point P", v:P},
+        {l:"Point N", v:fmt(N,1), cls:"hl"},
+        {l:"Distance N → M", v:fmt(dNM,1)},
+        {l:"Distance N → P", v:fmt(dNP,1), cls: solved?"match":""}
+      ]);
+
+      if (solved) markSolved();
+    }
+
+    attachDrag(pointN.g, function(pt){
+      if (state.locked) return;
+      N = clamp(Math.round(t.toGX(pt.x)), xMin+1, xMax-1);
+      pointN.setPos(t.toX(N), y0);
+      update();
+    });
+
+    update();
+  }
+
+  // ================= LEVEL 2 — The Hidden Triangle =================
+
+  function squarePolygon(p1, p2, outward){
+    // square built on segment p1->p2, extended in `outward` direction (unit-ish vector not required to be unit; we compute perpendicular ourselves)
+    var dx = p2.x-p1.x, dy = p2.y-p1.y;
+    var len = Math.hypot(dx,dy) || 1;
+    var pxn = -dy/len, pyn = dx/len;
+    // pick side matching outward hint (dot product test)
+    var dot = pxn*outward.x + pyn*outward.y;
+    if (dot < 0){ pxn = -pxn; pyn = -pyn; }
+    var p3 = {x:p2.x+pxn*len, y:p2.y+pyn*len};
+    var p4 = {x:p1.x+pxn*len, y:p1.y+pyn*len};
+    return [p1,p2,p3,p4];
+  }
+  function polyPoints(pts){ return pts.map(function(p){return p.x+","+p.y;}).join(" "); }
+  function centroid(pts){
+    var x=0,y=0; pts.forEach(function(p){x+=p.x;y+=p.y;});
+    return {x:x/pts.length, y:y/pts.length};
+  }
+
+  function setupLevel2(round){
+    var R = 10.5;
+    var t = makeTransform(-R,R,-R,R,58);
+    drawGrid(t, -R,R,-R,R, 1);
+
+    var A = round.a, target = round.target;
+    var B = { x: clamp(A.x+round.startDx, -R+1, R-1), y: clamp(A.y+round.startDy, -R+1, R-1) };
+
+    var legH = el("line", {"stroke-dasharray":"6 5", stroke:"var(--text-dim)", "stroke-width":2});
+    var legV = el("line", {"stroke-dasharray":"6 5", stroke:"var(--text-dim)", "stroke-width":2});
+    var hyp  = el("line", {stroke:"var(--coral)", "stroke-width":4, "stroke-linecap":"round"});
+    var sqH  = el("polygon", {fill:"rgba(94,234,212,0.22)", stroke:"var(--accent)", "stroke-width":1.5});
+    var sqV  = el("polygon", {fill:"rgba(167,139,250,0.22)", stroke:"#a78bfa", "stroke-width":1.5});
+    var sqHyp= el("polygon", {fill:"rgba(251,191,36,0.20)", stroke:"var(--gold)", "stroke-width":1.5});
+    [sqH,sqV,sqHyp,legH,legV,hyp].forEach(function(e){svg.appendChild(e);});
+
+    var lblH = el("text", {"text-anchor":"middle","font-size":13,"font-weight":800, fill:"var(--accent)"});
+    var lblV = el("text", {"text-anchor":"middle","font-size":13,"font-weight":800, fill:"#a78bfa"});
+    var lblHyp = el("text", {"text-anchor":"middle","font-size":13,"font-weight":800, fill:"var(--gold)"});
+    [lblH,lblV,lblHyp].forEach(function(e){svg.appendChild(e);});
+
+    var pointA = makePoint(t.toX(A.x), t.toY(A.y), "var(--gold)", "A", -16, -14);
+    var pointB = makePoint(t.toX(B.x), t.toY(B.y), "var(--accent)", "B", 16, -14, true);
+
+    function update(){
+      var dx = B.x - A.x, dy = B.y - A.y;
+      var d = Math.hypot(dx,dy);
+      var solved = Math.abs(d - target) < 0.03;
+
+      var pA = {x:t.toX(A.x), y:t.toY(A.y)};
+      var pB = {x:t.toX(B.x), y:t.toY(B.y)};
+      var pR = {x:t.toX(B.x), y:t.toY(A.y)}; // right angle corner
+
+      legH.setAttribute("x1",pA.x); legH.setAttribute("y1",pA.y);
+      legH.setAttribute("x2",pR.x); legH.setAttribute("y2",pR.y);
+      legV.setAttribute("x1",pR.x); legV.setAttribute("y1",pR.y);
+      legV.setAttribute("x2",pB.x); legV.setAttribute("y2",pB.y);
+      hyp.setAttribute("x1",pA.x); hyp.setAttribute("y1",pA.y);
+      hyp.setAttribute("x2",pB.x); hyp.setAttribute("y2",pB.y);
+      hyp.setAttribute("stroke", solved ? "var(--success)" : "var(--coral)");
+
+      // squares: outward = away from the triangle's interior
+      var outH = {x:0, y: (dy>=0? -1: 1)}; // horizontal leg square points opposite of dy sign (screen y handled inside squarePolygon via px/py in svg space, so flip)
+      var outHsvg = {x:0, y: (dy>=0? 1: -1)}; // svg y grows downward; interior is toward B which is up(-) if dy>0. push away => positive svg y if dy>0
+      var outV = {x:(dx>=0? 1: -1), y:0};
+
+      var sqHpts = squarePolygon(pA, pR, outHsvg);
+      var sqVpts = squarePolygon(pR, pB, outV);
+      // hypotenuse square: outward = away from R
+      var mid = {x:(pA.x+pB.x)/2, y:(pA.y+pB.y)/2};
+      var toR = {x:pR.x-mid.x, y:pR.y-mid.y};
+      var awayFromR = {x:-toR.x, y:-toR.y};
+      var sqHypPts = squarePolygon(pA, pB, awayFromR);
+
+      sqH.setAttribute("points", polyPoints(sqHpts));
+      sqV.setAttribute("points", polyPoints(sqVpts));
+      sqHyp.setAttribute("points", polyPoints(sqHypPts));
+      sqHyp.setAttribute("fill", solved ? "rgba(74,222,128,0.28)" : "rgba(251,191,36,0.20)");
+      sqHyp.setAttribute("stroke", solved ? "var(--success)" : "var(--gold)");
+
+      var cH = centroid(sqHpts), cV = centroid(sqVpts), cHyp = centroid(sqHypPts);
+      lblH.setAttribute("x",cH.x); lblH.setAttribute("y",cH.y+4); lblH.textContent = fmt(dx*dx,1);
+      lblV.setAttribute("x",cV.x); lblV.setAttribute("y",cV.y+4); lblV.textContent = fmt(dy*dy,1);
+      lblHyp.setAttribute("x",cHyp.x); lblHyp.setAttribute("y",cHyp.y+4); lblHyp.textContent = fmt(d*d,1);
+      lblHyp.setAttribute("fill", solved ? "var(--success)" : "var(--gold)");
+
+      pointA.setPos(pA.x,pA.y); pointB.setPos(pB.x,pB.y);
+
+      readoutEl.innerHTML = readoutHTML([
+        {l:"Horizontal step (Δx)", v:fmt(dx,1)},
+        {l:"Vertical step (Δy)", v:fmt(dy,1)},
+        {l:"Leg² + Leg²", v:fmt(dx*dx,1)+" + "+fmt(dy*dy,1)+" = "+fmt(dx*dx+dy*dy,1)},
+        {l:"Diagonal distance", v:fmt(d,2), cls: solved?"match":"hl"},
+        {l:"Target distance", v:fmt(target,2), cls:"target"}
+      ]);
+
+      if (solved) markSolved();
+    }
+
+    attachDrag(pointB.g, function(pt){
+      if (state.locked) return;
+      B = {
+        x: clamp(Math.round(t.toGX(pt.x)), -R+1, R-1),
+        y: clamp(Math.round(t.toGY(pt.y)), -R+1, R-1)
+      };
+      update();
+    });
+
+    update();
+  }
+
+  // ================= LEVEL 3 — Equal Ground =================
+
+  function setupLevel3(round){
+    var R = 9.5;
+    var t = makeTransform(-R,R,-R,R,58);
+    drawGrid(t, -R,R,-R,R, 1);
+
+    var A = round.a, B = round.b;
+    var C = { x: (A.x+B.x)/2 + 2.6, y: (A.y+B.y)/2 + 2.6 };
+
+    var lineCA = el("line", {stroke:"rgba(251,191,36,0.55)", "stroke-width":2});
+    var lineCB = el("line", {stroke:"rgba(251,124,141,0.55)", "stroke-width":2});
+    var revealLine = el("line", {stroke:"var(--success)", "stroke-width":3, opacity:0});
+    var trailGroup = el("g", {});
+    [lineCA, lineCB, revealLine, trailGroup].forEach(function(e){svg.appendChild(e);});
+
+    var pointA = makePoint(t.toX(A.x), t.toY(A.y), "var(--gold)", "A", -14,-14);
+    var pointB = makePoint(t.toX(B.x), t.toY(B.y), "var(--coral)", "B", 14,-14);
+    var pointC = makePoint(t.toX(C.x), t.toY(C.y), "var(--accent)", "C", 0,-18, true);
+
+    balanceMeterWrap.style.display = "block";
+
+    function tryAddTrail(gx, gy){
+      for (var i=0;i<state.trail.length;i++){
+        if (dist(gx,gy,state.trail[i].x,state.trail[i].y) < 1.1) return;
+      }
+      state.trail.push({x:gx,y:gy});
+      var dot = el("circle", {cx:t.toX(gx), cy:t.toY(gy), r:5, fill:"var(--gold)", opacity:0.9});
+      trailGroup.appendChild(dot);
+    }
+
+    function reveal(){
+      var mx = (A.x+B.x)/2, my=(A.y+B.y)/2;
+      var dx = B.x-A.x, dy = B.y-A.y;
+      var len = Math.hypot(dx,dy);
+      var pxn = -dy/len, pyn = dx/len;
+      var span = R*2.2;
+      var p1 = {x:t.toX(mx+pxn*span), y:t.toY(my+pyn*span)};
+      var p2 = {x:t.toX(mx-pxn*span), y:t.toY(my-pyn*span)};
+      revealLine.setAttribute("x1",p1.x); revealLine.setAttribute("y1",p1.y);
+      revealLine.setAttribute("x2",p2.x); revealLine.setAttribute("y2",p2.y);
+      revealLine.style.transition = "opacity .8s ease";
+      requestAnimationFrame(function(){ revealLine.setAttribute("opacity",1); });
+      markSolved();
+    }
+
+    function update(){
+      var pA={x:t.toX(A.x),y:t.toY(A.y)}, pB={x:t.toX(B.x),y:t.toY(B.y)}, pC={x:t.toX(C.x),y:t.toY(C.y)};
+      lineCA.setAttribute("x1",pC.x);lineCA.setAttribute("y1",pC.y);lineCA.setAttribute("x2",pA.x);lineCA.setAttribute("y2",pA.y);
+      lineCB.setAttribute("x1",pC.x);lineCB.setAttribute("y1",pC.y);lineCB.setAttribute("x2",pB.x);lineCB.setAttribute("y2",pB.y);
+      pointC.setPos(pC.x,pC.y);
+
+      var dA = dist(C.x,C.y,A.x,A.y), dB = dist(C.x,C.y,B.x,B.y);
+      var diff = dA - dB;
+      var balanced = Math.abs(diff) < round.tol;
+      pointC.ring.setAttribute("fill", balanced ? "var(--success)" : "var(--accent)");
+
+      var pct = clamp(diff / 8, -1, 1); // -1..1
+      balanceNeedle.style.left = (50 + pct*45) + "%";
+      balanceNeedle.classList.toggle("balanced", balanced);
+
+      if (balanced && !state.locked){
+        tryAddTrail(C.x, C.y);
+        if (state.trail.length >= round.needed){
+          reveal();
+        }
+      }
+
+      readoutEl.innerHTML = readoutHTML([
+        {l:"Distance C → A", v:fmt(dA,2)},
+        {l:"Distance C → B", v:fmt(dB,2)},
+        {l:"Difference", v:fmt(Math.abs(diff),2), cls: balanced?"match":""},
+        {l:"Points found", v: Math.min(state.trail.length,round.needed) + " / " + round.needed, cls:"target"}
+      ]);
+    }
+
+    attachDrag(pointC.g, function(pt){
+      if (state.locked) return;
+      C = { x: clamp(t.toGX(pt.x), -R+0.3, R-0.3), y: clamp(t.toGY(pt.y), -R+0.3, R-0.3) };
+      update();
+    });
+
+    update();
+  }
+
+  // ================= LEVEL 4 — On the Map =================
+
+  function setupLevel4(round){
+    var R = 10.5;
+    var t = makeTransform(-R,R,-R,R,58);
+
+    var mapBg = el("rect", {x:t.toX(-R),y:t.toY(R), width:t.toX(R)-t.toX(-R), height:t.toY(-R)-t.toY(R), rx:16, fill:"rgba(94,234,212,0.05)"});
+    svg.appendChild(mapBg);
+    drawGrid(t, -R,R,-R,R, 1);
+
+    var A = round.a, scale = round.scale, targetKm = round.targetKm;
+    var B = { x: clamp(A.x+round.startDx, -R+1, R-1), y: clamp(A.y+round.startDy, -R+1, R-1) };
+
+    var legH = el("line", {"stroke-dasharray":"6 5", stroke:"var(--text-dim)", "stroke-width":2});
+    var legV = el("line", {"stroke-dasharray":"6 5", stroke:"var(--text-dim)", "stroke-width":2});
+    var hyp  = el("line", {stroke:"var(--coral)", "stroke-width":4, "stroke-linecap":"round"});
+    [legH,legV,hyp].forEach(function(e){svg.appendChild(e);});
+
+    var iconA = el("text", {x:t.toX(A.x), y:t.toY(A.y)+8, "text-anchor":"middle", "font-size":26, "pointer-events":"none"});
+    iconA.textContent = "🎡";
+    var iconB = el("text", {x:t.toX(B.x), y:t.toY(B.y)+8, "text-anchor":"middle", "font-size":26, "pointer-events":"none"});
+    iconB.textContent = "🚤";
+    var hitB = el("circle", {cx:t.toX(B.x), cy:t.toY(B.y), r:26, fill:"transparent"});
+    svg.appendChild(iconA); svg.appendChild(hitB); svg.appendChild(iconB);
+
+    var labelA = el("text", {x:t.toX(A.x), y:t.toY(A.y)-22, "text-anchor":"middle", "font-size":12, "font-weight":700, fill:"var(--gold)", "pointer-events":"none"});
+    labelA.textContent = "bumper cars";
+    var labelB = el("text", {x:t.toX(B.x), y:t.toY(B.y)-22, "text-anchor":"middle", "font-size":12, "font-weight":700, fill:"var(--accent)", "pointer-events":"none"});
+    labelB.textContent = "bumper boats";
+    svg.appendChild(labelA); svg.appendChild(labelB);
+
+    function update(){
+      var dx = B.x-A.x, dy = B.y-A.y;
+      var gridD = Math.hypot(dx,dy);
+      var realD = gridD*scale;
+      var solved = Math.abs(realD - targetKm) < 0.03;
+
+      var pA={x:t.toX(A.x),y:t.toY(A.y)}, pB={x:t.toX(B.x),y:t.toY(B.y)}, pR={x:t.toX(B.x),y:t.toY(A.y)};
+      legH.setAttribute("x1",pA.x);legH.setAttribute("y1",pA.y);legH.setAttribute("x2",pR.x);legH.setAttribute("y2",pR.y);
+      legV.setAttribute("x1",pR.x);legV.setAttribute("y1",pR.y);legV.setAttribute("x2",pB.x);legV.setAttribute("y2",pB.y);
+      hyp.setAttribute("x1",pA.x);hyp.setAttribute("y1",pA.y);hyp.setAttribute("x2",pB.x);hyp.setAttribute("y2",pB.y);
+      hyp.setAttribute("stroke", solved ? "var(--success)" : "var(--coral)");
+
+      iconB.setAttribute("x",pB.x); iconB.setAttribute("y",pB.y+8);
+      hitB.setAttribute("cx",pB.x); hitB.setAttribute("cy",pB.y);
+      labelB.setAttribute("x",pB.x); labelB.setAttribute("y",pB.y-22);
+
+      readoutEl.innerHTML = readoutHTML([
+        {l:"Map distance (units)", v:fmt(gridD,2)},
+        {l:"Scale", v:"1 unit = "+scale+" km"},
+        {l:"Real-world distance", v:fmt(realD,2)+" km", cls: solved?"match":"hl"},
+        {l:"Target", v:targetKm+" km", cls:"target"}
+      ]);
+
+      if (solved) markSolved();
+    }
+
+    attachDrag(hitB, function(pt){
+      if (state.locked) return;
+      B = { x: clamp(Math.round(t.toGX(pt.x)), -R+1, R-1), y: clamp(Math.round(t.toGY(pt.y)), -R+1, R-1) };
+      update();
+    });
+
+    update();
+  }
+
+  // ================= PER-LEVEL CONCEPT RECAPS =================
+
+  function recapText(x,y,txt,attrs){
+    var base = {x:x,y:y,"text-anchor":"middle","font-family":"inherit"};
+    for (var k in attrs) base[k]=attrs[k];
+    var t = el("text", base);
+    t.textContent = txt;
+    return t;
+  }
+
+  function renderRecap(levelIdx){
+    clearRecapSvg();
+    var lvl = LEVELS[levelIdx];
+    recapTag.textContent = "Level " + (levelIdx+1) + " complete";
+    recapTitle.textContent = lvl.title + " — here's the rule you found";
+    var isLast = levelIdx === LEVELS.length - 1;
+    continueBtn.textContent = isLast ? "See the wrap-up 🎉" : "Continue to Level " + (levelIdx+2) + " →";
+    RECAPS[levelIdx]();
+  }
+
+  var RECAPS = [
+    // Recap 1 — distance & midpoint on a line
+    function(){
+      recapDesc.textContent = "Distance on a line is the gap between two numbers. Split that gap evenly and you land on the midpoint — the one spot equally far from both ends.";
+      var y=110, ax=110, bx=410, mx=(ax+bx)/2;
+      recapSvg.appendChild(el("line",{x1:40,y1:y,x2:480,y2:y,stroke:"var(--axis-line)","stroke-width":2}));
+      recapSvg.appendChild(el("circle",{cx:ax,cy:y,r:8,fill:"var(--gold)"}));
+      recapSvg.appendChild(el("circle",{cx:bx,cy:y,r:8,fill:"var(--coral)"}));
+      recapSvg.appendChild(el("circle",{cx:mx,cy:y,r:7,fill:"var(--accent)"}));
+      recapSvg.appendChild(recapText(ax,y-18,"A",{fill:"var(--gold)","font-weight":800,"font-size":15}));
+      recapSvg.appendChild(recapText(bx,y-18,"B",{fill:"var(--coral)","font-weight":800,"font-size":15}));
+      recapSvg.appendChild(recapText(mx,y+30,"midpoint",{fill:"var(--accent)","font-weight":800,"font-size":12}));
+      // distance bracket
+      recapSvg.appendChild(el("line",{x1:ax,y1:y+50,x2:bx,y2:y+50,stroke:"rgba(255,255,255,0.4)","stroke-width":1.5}));
+      recapSvg.appendChild(el("line",{x1:ax,y1:y+44,x2:ax,y2:y+56,stroke:"rgba(255,255,255,0.4)","stroke-width":1.5}));
+      recapSvg.appendChild(el("line",{x1:bx,y1:y+44,x2:bx,y2:y+56,stroke:"rgba(255,255,255,0.4)","stroke-width":1.5}));
+      recapSvg.appendChild(recapText((ax+bx)/2,y+72,"distance = |A − B|",{fill:"var(--text-dim)","font-size":13,"font-weight":700}));
+      recapSvg.appendChild(recapText(mx,y-40,"(A + B) ÷ 2",{fill:"var(--accent)","font-size":13,"font-weight":700}));
+    },
+    // Recap 2 — Pythagorean theorem
+    function(){
+      recapDesc.textContent = "That's the Pythagorean theorem — a² + b² = c². It isn't a separate rule from \"straight-line distance.\" It's the same idea: square the two steps, add them, and the diagonal is whatever squares back to that total.";
+      var ax=90, ay=170, bx=350, by=170, cx=350, cy=40;
+      recapSvg.appendChild(el("polygon",{points:[ax,ay,bx,ay,bx,by].join(" "),fill:"none"})); // spacer no-op
+      recapSvg.appendChild(el("polygon",{points:[ax,ay,ax,ay-42,bx,ay-42,bx,ay].join(" "),fill:"rgba(94,234,212,0.22)",stroke:"var(--accent)","stroke-width":1.5}));
+      recapSvg.appendChild(el("polygon",{points:[bx,ay,bx+42,ay,bx+42,cy,bx,cy].join(" "),fill:"rgba(167,139,250,0.22)",stroke:"#a78bfa","stroke-width":1.5}));
+      var mx=(ax+bx)/2, my=(ay+cy)/2, dx=bx-ax, dy=cy-ay, len=Math.hypot(dx,dy);
+      var pxn=-dy/len, pyn=dx/len; if (pxn>0){pxn=-pxn;pyn=-pyn;}
+      var hp=[{x:ax,y:ay},{x:bx,y:cy},{x:bx+pxn*len,y:cy+pyn*len},{x:ax+pxn*len,y:ay+pyn*len}];
+      recapSvg.appendChild(el("polygon",{points:hp.map(function(p){return p.x+","+p.y;}).join(" "),fill:"rgba(251,191,36,0.20)",stroke:"var(--gold)","stroke-width":1.5}));
+      recapSvg.appendChild(el("line",{x1:ax,y1:ay,x2:bx,y2:ay,stroke:"var(--text)","stroke-width":3}));
+      recapSvg.appendChild(el("line",{x1:bx,y1:ay,x2:bx,y2:cy,stroke:"var(--text)","stroke-width":3}));
+      recapSvg.appendChild(el("line",{x1:ax,y1:ay,x2:bx,y2:cy,stroke:"var(--coral)","stroke-width":3}));
+      recapSvg.appendChild(recapText((ax+bx)/2,ay+18,"a",{fill:"var(--accent)","font-weight":800,"font-size":15}));
+      recapSvg.appendChild(recapText(bx+18,(ay+cy)/2,"b",{fill:"#a78bfa","font-weight":800,"font-size":15}));
+      recapSvg.appendChild(recapText((ax+bx)/2-14,(ay+cy)/2-6,"c",{fill:"var(--coral)","font-weight":800,"font-size":15}));
+      recapSvg.appendChild(recapText(465,105,"a² + b² = c²",{fill:"var(--text)","font-size":19,"font-weight":800}));
+    },
+    // Recap 3 — perpendicular bisector
+    function(){
+      recapDesc.textContent = "Every point exactly as far from A as it is from B lines up perfectly straight, crossing segment AB at its midpoint — at a right angle. That line is the perpendicular bisector.";
+      var ax=90,ay=140,bx=390,by=140,mx=(ax+bx)/2,my=140;
+      recapSvg.appendChild(el("line",{x1:ax,y1:ay,x2:bx,y2:by,stroke:"var(--text-dim)","stroke-width":2}));
+      recapSvg.appendChild(el("line",{x1:mx,y1:30,x2:mx,y2:190,stroke:"var(--success)","stroke-width":3}));
+      recapSvg.appendChild(el("rect",{x:mx-9,y:my-9,width:9,height:9,fill:"none",stroke:"var(--success)","stroke-width":1.5}));
+      recapSvg.appendChild(el("circle",{cx:ax,cy:ay,r:8,fill:"var(--gold)"}));
+      recapSvg.appendChild(el("circle",{cx:bx,cy:by,r:8,fill:"var(--coral)"}));
+      var cx=mx, cy=60;
+      recapSvg.appendChild(el("circle",{cx:cx,cy:cy,r:7,fill:"var(--accent)"}));
+      recapSvg.appendChild(el("line",{x1:cx,y1:cy,x2:ax,y2:ay,stroke:"rgba(251,191,36,0.7)","stroke-width":1.5,"stroke-dasharray":"4 4"}));
+      recapSvg.appendChild(el("line",{x1:cx,y1:cy,x2:bx,y2:by,stroke:"rgba(251,124,141,0.7)","stroke-width":1.5,"stroke-dasharray":"4 4"}));
+      recapSvg.appendChild(recapText(ax,ay+24,"A",{fill:"var(--gold)","font-weight":800,"font-size":15}));
+      recapSvg.appendChild(recapText(bx,by+24,"B",{fill:"var(--coral)","font-weight":800,"font-size":15}));
+      recapSvg.appendChild(recapText(mx+70,25,"⊥ bisector",{fill:"var(--success)","font-weight":800,"font-size":13}));
+    },
+    // Recap 4 — scaling to real distance
+    function(){
+      recapDesc.textContent = "Same triangle, any size. Once you know the grid distance, multiplying by the scale converts it straight into a real-world distance — the shape never changes, only what one unit stands for.";
+      var ax=60,ay=160,bx=160,by=90;
+      recapSvg.appendChild(el("line",{x1:ax,y1:ay,x2:bx,y2:ay,stroke:"var(--text-dim)","stroke-dasharray":"4 4","stroke-width":2}));
+      recapSvg.appendChild(el("line",{x1:bx,y1:ay,x2:bx,y2:by,stroke:"var(--text-dim)","stroke-dasharray":"4 4","stroke-width":2}));
+      recapSvg.appendChild(el("line",{x1:ax,y1:ay,x2:bx,y2:by,stroke:"var(--coral)","stroke-width":3}));
+      recapSvg.appendChild(recapText((ax+bx)/2,ay+16,"grid units",{fill:"var(--text-dim)","font-size":11}));
+      recapSvg.appendChild(recapText(260,128,"× scale",{fill:"var(--gold)","font-size":18,"font-weight":800}));
+      recapSvg.appendChild(recapText(260,150,"→",{fill:"var(--text-dim)","font-size":22}));
+      var ax2=360,ay2=170,bx2=470,by2=55;
+      recapSvg.appendChild(el("line",{x1:ax2,y1:ay2,x2:bx2,y2:ay2,stroke:"var(--text-dim)","stroke-dasharray":"4 4","stroke-width":2}));
+      recapSvg.appendChild(el("line",{x1:bx2,y1:ay2,x2:bx2,y2:by2,stroke:"var(--text-dim)","stroke-dasharray":"4 4","stroke-width":2}));
+      recapSvg.appendChild(el("line",{x1:ax2,y1:ay2,x2:bx2,y2:by2,stroke:"var(--success)","stroke-width":3}));
+      recapSvg.appendChild(recapText((ax2+bx2)/2,ay2+16,"real km",{fill:"var(--success)","font-size":11,"font-weight":700}));
+    }
+  ];
+
+  // ================= LEVEL CONFIG =================
+
+  var LEVELS = [
+    {
+      title:"Walk the Line",
+      learn:"Distance on a line is just the gap between two numbers — and splitting that gap evenly gives the midpoint.",
+      hint:"Drag point P until the gap matches the target. There might be more than one spot that works.",
+      rounds:[
+        {a:-2, target:6, roundHint:"Try landing exactly 6 steps from A — either direction works."},
+        {a:3, target:7, roundHint:"Subtract to find the gap. Which two numbers seven apart could P and 3 be?"},
+        {a:0, target:5, roundHint:"Zero has a twin 5 away on each side — one positive, one negative."},
+        {mode:"midpoint", m:-2, p:6,
+          instruction:"This time, find N so it's exactly as far from M as it is from P — the point right in the middle.",
+          roundHint:"Add M and P together, then split the total in half."}
+      ],
+      setup: setupLevel1
+    },
+    {
+      title:"The Hidden Triangle",
+      learn:"The shortcut between two points is a right triangle in disguise.",
+      hint:"Drag point B around. Watch the two step-squares and the diagonal square as the triangle changes shape.",
+      rounds:[
+        {a:{x:-4,y:-3}, target:5, startDx:2, startDy:2, roundHint:"Try a horizontal step of 3 and a vertical step of 4."},
+        {a:{x:-2,y:2}, target:10, startDx:3, startDy:3, roundHint:"Try steps of 6 and 8 — or 0 and 10 in a straight line."},
+        {a:{x:3,y:-4}, target:Math.sqrt(50), startDx:2, startDy:2, roundHint:"Try equal horizontal and vertical steps of 5."}
+      ],
+      setup: setupLevel2
+    },
+    {
+      title:"Equal Ground",
+      learn:"Points equally far from two spots always line up.",
+      hint:"Drag C until its distance to A matches its distance to B — then keep exploring other spots where that keeps happening.",
+      rounds:[
+        {a:{x:-6,y:-1}, b:{x:2,y:-1}, needed:6, tol:0.18, roundHint:"Slide straight up or down from directly between A and B — that whole line stays balanced."},
+        {a:{x:-5,y:-5}, b:{x:4,y:3}, needed:5, tol:0.18, roundHint:"A and B are tilted this time, so the balanced line tilts with them — try matching that angle."}
+      ],
+      setup: setupLevel3
+    },
+    {
+      title:"On the Map",
+      learn:"The same triangle scales up to real-world distances.",
+      hint:"Drag the bumper boats until the real-world distance matches the target.",
+      rounds:[
+        {a:{x:-3,y:-2}, scale:0.5, targetKm:5, startDx:4, startDy:2, roundHint:"You need 10 map units total. Try 6 across and 8 up."},
+        {a:{x:2,y:-5}, scale:0.25, targetKm:2.5, startDx:-3, startDy:2, roundHint:"Still 10 map units — but at this scale that's a much shorter real trip."}
+      ],
+      setup: setupLevel4
+    }
+  ];
+
+  loadRound();
+})();
+</script>
+</body>
+</html>
