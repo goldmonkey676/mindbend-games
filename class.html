@@ -112,12 +112,12 @@
     margin-top:5px;
     font-size:13.5px;color:var(--text-dimmer);
   }
-  .card:first-child .num{
+  .card.newest .num{
     background:var(--gold-soft);color:var(--gold);
   }
-  .card:first-child .meta{
+  .card.newest .meta{
     display:inline-block;
-    margin-top:6px;
+    margin-top:12px;
     padding:3px 9px;
     border-radius:999px;
     background:var(--gold-soft);
@@ -240,16 +240,26 @@
       return g && typeof g.file === "string" && g.file;
     }) : [];
 
-    // Newest first, driven by each game's own "added" date — never by however
-    // it happens to be ordered in the JSON. A stable sort means games without
-    // a date (or sharing one) just keep their original relative order instead
-    // of jumping around.
+    // Oldest first (newest at the bottom), driven by each game's own "added"
+    // date — never by however it happens to be ordered in the JSON. A stable
+    // sort means games without a date fall back to their original relative
+    // order; same-day entries do too, so list same-day additions oldest-
+    // first in the JSON itself to break the tie correctly.
     games = games.slice().sort(function(a, b){
       var da = (typeof a.added === "string") ? a.added : "";
       var db = (typeof b.added === "string") ? b.added : "";
       if(da === db) return 0;
-      return da > db ? -1 : 1;
+      return da < db ? -1 : 1;
     });
+
+    // The badge always finds the actually-newest game, regardless of where
+    // that lands in the (now oldest-first) list.
+    var newestIndex = 0;
+    for(var ni = 1; ni < games.length; ni++){
+      var cur = (typeof games[ni].added === "string") ? games[ni].added : "";
+      var best = (typeof games[newestIndex].added === "string") ? games[newestIndex].added : "";
+      if(cur >= best) newestIndex = ni;
+    }
 
     if(games.length === 0){
       subEl.hidden = true;
@@ -272,10 +282,11 @@
       var g = games[i];
       var title = (typeof g.title === "string" && g.title.trim())
         ? g.title.trim() : g.file.split("/").pop().replace(/\.html?$/i, "");
-      var meta = i === 0 ? "This week’s game" : "";
+      var isNewest = i === newestIndex;
+      var meta = isNewest ? "This week’s game" : "";
       html +=
         '<li>' +
-          '<a class="card" href="' + esc(g.file) + '">' +
+          '<a class="card' + (isNewest ? ' newest' : '') + '" href="' + esc(g.file) + '">' +
             '<span class="num">' + (i + 1) + '</span>' +
             '<span class="body">' +
               '<span class="title">' + esc(title) + '</span>' +

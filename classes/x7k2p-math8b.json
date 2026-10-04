@@ -1,8 +1,8 @@
 {
   "name": "Math 8B Geometry",
   "games": [
-    { "file": "games/geometry-triangle-rigidity.html", "title": "Locked or Wobbly?", "added": "2026-10-04" },
+    { "file": "games/distance-and-the-hidden-triangle.html", "title": "Distance & the Hidden Triangle", "added": "2026-08-29" },
     { "file": "games/geometry-perpendicular-bisector.html", "title": "Signal Line", "added": "2026-08-29" },
-    { "file": "games/distance-and-the-hidden-triangle.html", "title": "Distance & the Hidden Triangle", "added": "2026-08-29" }
+    { "file": "games/geometry-triangle-rigidity.html", "title": "Locked or Wobbly?", "added": "2026-10-04" }
   ]
 }
