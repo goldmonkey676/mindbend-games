@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Locked or Wobbly?</title>
+<style>
+  :root{
+    --grass:#5fa244; --grass-dk:#437530; --dirt:#8a5a34; --dirt-dk:#6b4426;
+    --sky-top:#bfe6f2; --sky-bot:#e7f5e0;
+    --wood:#c98a4b; --wood-dk:#8f5c2a; --wood-lt:#e3ac70;
+    --gold:#f4c430; --gold-dk:#b6900e; --gold-lt:#ffe27a;
+    --steel:#8a97a6; --steel-dk:#5b6675; --steel-lt:#b7c1cc;
+    --ink:#222a33; --paper:#fbf3df; --paper-dk:#e8dcb8;
+    --good:#3fae5a; --good-dk:#297a3d; --warn:#e0a83e; --warn-dk:#a97a1f;
+    --info:#4c8fd6; --info-dk:#2f5f96;
+    --danger:#d9584a;
+    --shadow: 5px 5px 0 rgba(20,20,10,.28);
+    --shadow-sm: 3px 3px 0 rgba(20,20,10,.25);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    font-family:'Courier New', ui-monospace, Menlo, monospace;
+    background:
+      linear-gradient(var(--sky-top), var(--sky-bot)) fixed;
+    color:var(--ink);
+    overflow:hidden;
+    touch-action:none;
+    -webkit-user-select:none; user-select:none;
+  }
+  #app{
+    position:fixed; inset:0;
+    display:flex; flex-direction:column;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.035) 0 2px, transparent 2px 34px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,0.035) 0 2px, transparent 2px 34px);
+  }
+
+  /* ---------- top bar ---------- */
+  #topbar{
+    display:flex; align-items:center; gap:10px;
+    padding:8px 12px;
+    background:var(--wood-dk);
+    border-bottom:4px solid var(--ink);
+    box-shadow:0 4px 0 rgba(0,0,0,.15);
+    flex:0 0 auto;
+    z-index:5;
+  }
+  .brand{
+    color:var(--gold-lt); font-weight:700; letter-spacing:1px;
+    font-size:14px; text-transform:uppercase;
+    text-shadow:2px 2px 0 rgba(0,0,0,.4);
+    white-space:nowrap;
+  }
+  #dots{display:flex; gap:6px; flex:1; justify-content:center; flex-wrap:wrap;}
+  .dot{
+    width:22px; height:22px; border:3px solid var(--ink);
+    background:var(--steel-lt); cursor:pointer;
+    box-shadow:2px 2px 0 rgba(0,0,0,.25);
+    display:flex; align-items:center; justify-content:center;
+    font-size:10px; font-weight:700; color:var(--ink);
+  }
+  .dot.reached{background:var(--wood-lt); cursor:pointer;}
+  .dot.done{background:var(--good); color:#fff;}
+  .dot.current{outline:3px solid var(--gold); outline-offset:2px;}
+  .dot.locked{opacity:.45; cursor:default;}
+
+  .pxbtn{
+    font-family:inherit; font-weight:700; letter-spacing:.5px; text-transform:uppercase;
+    border:3px solid var(--ink); background:var(--wood); color:var(--ink);
+    padding:9px 14px; font-size:12.5px; cursor:pointer;
+    box-shadow:var(--shadow-sm);
+    transition:transform .06s ease;
+  }
+  .pxbtn:active{transform:translate(2px,2px); box-shadow:1px 1px 0 rgba(0,0,0,.25);}
+  .pxbtn.small{padding:6px 9px; font-size:14px;}
+  .pxbtn.primary{background:var(--good); color:#fff;}
+  .pxbtn.ghost{background:var(--paper);}
+  .pxbtn:disabled{opacity:.4; cursor:default; transform:none; box-shadow:var(--shadow-sm);}
+  .pxbtn[hidden]{display:none;}
+
+  /* ---------- main / screens ---------- */
+  #main{flex:1 1 auto; position:relative; overflow:hidden;}
+  .screen{
+    position:absolute; inset:0; overflow-y:auto; overflow-x:hidden;
+    display:flex; flex-direction:column; align-items:center;
+    padding:14px 12px 20px;
+  }
+  .screen[hidden]{display:none;}
+
+  .cardTitle{font-size:15px; text-transform:uppercase; letter-spacing:.5px; color:var(--wood-dk); font-weight:700; margin:2px 0 4px;}
+  .cardSub{font-size:12.5px; color:#445; max-width:640px; text-align:center; line-height:1.5; margin:0 0 10px;}
+
+  /* ---------- intro / complete ---------- */
+  .heroCard{
+    background:var(--paper); border:4px solid var(--ink); box-shadow:var(--shadow);
+    max-width:560px; margin-top:18px; padding:22px 22px 26px; text-align:center;
+  }
+  .heroCard h1{font-size:22px; margin:0 0 10px; letter-spacing:.5px;}
+  .heroCard p{font-size:13.5px; line-height:1.65; color:#334; margin:0 0 16px;}
+  .heroTriangle{display:block; margin:6px auto 14px;}
+
+  /* ---------- level screen ---------- */
+  .levelHead{text-align:center; max-width:680px;}
+  .levelLearning{
+    display:inline-block; background:var(--gold); border:3px solid var(--ink);
+    color:var(--ink); font-size:10.5px; font-weight:700; letter-spacing:.5px;
+    padding:3px 10px; text-transform:uppercase; box-shadow:var(--shadow-sm);
+    margin-bottom:6px;
+  }
+  .levelHead h2{margin:2px 0 4px; font-size:17px;}
+  .levelHead p{margin:0; font-size:12.5px; color:#445; line-height:1.5;}
+
+  .stageWrap{
+    display:flex; gap:12px; flex-wrap:wrap; justify-content:center; align-items:flex-start;
+    width:100%; max-width:980px; margin-top:10px;
+  }
+  .stageCard{
+    background:var(--grass); border:4px solid var(--ink); box-shadow:var(--shadow);
+    flex:1 1 560px; max-width:660px; min-width:280px;
+    position:relative; overflow:hidden;
+  }
+  #stage{display:block; width:100%; height:auto;}
+
+  .hud{
+    flex:0 0 220px; min-width:200px;
+    background:var(--paper); border:4px solid var(--ink); box-shadow:var(--shadow);
+    padding:10px 12px 12px; font-size:12px;
+  }
+  .hudTitle{font-weight:700; text-transform:uppercase; font-size:10.5px; letter-spacing:.5px; color:var(--wood-dk); margin-bottom:6px;}
+  .hudRow{display:flex; flex-direction:column; gap:3px; margin-bottom:8px;}
+  .hudLine{display:flex; justify-content:space-between; align-items:center; padding:2px 4px; border-bottom:1px dashed #d8c99a;}
+  .hudLine .lbl{color:#556; font-weight:700;}
+  .hudLine .val{font-weight:700; font-variant-numeric:tabular-nums;}
+  .hudLine .val.given{color:var(--gold-dk);}
+  .hudLine .val.ok{color:var(--good-dk);}
+  .hudLine .val.warm{color:var(--warn-dk);}
+  .hudLine .val.cold{color:#6b7684;}
+
+  .statusPill{
+    margin-top:6px; text-align:center; font-weight:700; font-size:11.5px;
+    border:3px solid var(--ink); padding:7px 6px; letter-spacing:.3px;
+    background:var(--steel-lt); box-shadow:var(--shadow-sm);
+  }
+  .statusPill.found{background:var(--good); color:#fff;}
+  .statusPill.flex{background:var(--warn);}
+
+  .targetsRow{display:flex; gap:6px; margin-top:8px; justify-content:center; flex-wrap:wrap;}
+  .badge{
+    border:3px solid var(--ink); background:var(--steel-lt); font-size:10.5px; font-weight:700;
+    padding:5px 8px; box-shadow:var(--shadow-sm);
+  }
+  .badge.on{background:var(--good); color:#fff;}
+
+  .controls{display:flex; flex-direction:column; align-items:center; gap:8px; margin-top:12px; max-width:640px; width:100%;}
+  .hintPanel{
+    background:var(--paper); border:3px dashed var(--wood-dk); padding:9px 12px;
+    font-size:12px; line-height:1.5; max-width:560px; text-align:center;
+  }
+  .hintPanel[hidden]{display:none;}
+
+  .extraBtn{margin-top:6px;}
+
+  /* ---------- close-out ---------- */
+  .closeoutCard{
+    background:var(--paper); border:4px solid var(--ink); box-shadow:var(--shadow);
+    max-width:520px; width:100%; margin-top:14px; padding:18px 20px 20px; text-align:center;
+  }
+  .closeoutLabel{
+    display:inline-block; background:var(--gold); border:3px solid var(--ink);
+    font-size:10.5px; font-weight:700; letter-spacing:.5px; padding:3px 10px;
+    text-transform:uppercase; box-shadow:var(--shadow-sm); margin-bottom:8px;
+  }
+  .closeoutCard h2{margin:2px 0 10px; font-size:17px;}
+  #closeoutDiagram{display:block; margin:0 auto 10px; width:100%; max-width:340px; height:auto;}
+  .closeoutCard p{font-size:13px; line-height:1.65; color:#334; margin:0 0 14px;}
+  .readGateTrack{
+    height:14px; border:3px solid var(--ink); background:#fff; margin-bottom:12px;
+    box-shadow:var(--shadow-sm);
+  }
+  .readGateFill{height:100%; width:0%; background:var(--gold); transition:width .1s linear;}
+  .readGateFill.done{background:var(--good);}
+
+  /* ---------- complete ---------- */
+  .recap{text-align:left; max-width:420px; margin:0 auto 14px; font-size:12px; line-height:1.7;}
+  .recap li{margin-bottom:2px;}
+
+  footer#bottombar{
+    flex:0 0 auto; display:flex; justify-content:center; padding:10px;
+    background:var(--wood-dk); border-top:4px solid var(--ink);
+  }
+
+  @media (max-width:640px){
+    .brand{font-size:11px;}
+    .dot{width:19px; height:19px;}
+    .stageCard{flex-basis:100%;}
+    .hud{flex-basis:100%; max-width:660px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">🔺 Locked or Wobbly?</div>
+    <div id="dots"></div>
+    <button id="soundBtn" class="pxbtn small" title="Toggle sound">🔊</button>
+  </header>
+
+  <main id="main">
+
+    <!-- INTRO -->
+    <section id="screenIntro" class="screen">
+      <div class="heroCard">
+        <svg class="heroTriangle" width="220" height="130" viewBox="0 0 220 130">
+          <polygon points="30,110 190,110 120,20" fill="none" stroke="#8f5c2a" stroke-width="10" stroke-linejoin="round"/>
+          <polygon points="30,110 190,110 120,20" fill="none" stroke="#f4c430" stroke-width="4" stroke-linejoin="round"/>
+        </svg>
+        <h1>Why aren't bridges built from squares?</h1>
+        <p>Cranes, roof trusses, and bridge girders are built out of triangles &mdash; almost never squares. There's a real reason: a triangle with fixed side lengths <b>can't change shape</b>. A square can.
+        <br><br>
+        You're about to build some triangles from a few given clues, try to shake each one loose, and figure out exactly which clues lock a shape down &mdash; and which ones let it wobble.</p>
+        <button id="startBtn" class="pxbtn primary">Start Building &#9654;</button>
+      </div>
+    </section>
+
+    <!-- LEVEL -->
+    <section id="screenLevel" class="screen" hidden>
+      <div class="levelHead">
+        <div class="levelLearning" id="levelLearning"></div>
+        <h2 id="levelTitle"></h2>
+        <p id="levelInstruction"></p>
+      </div>
+      <div class="stageWrap">
+        <div class="stageCard" id="stageCard">
+          <svg id="stage" viewBox="0 0 880 520" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+        <aside class="hud" id="hud">
+          <div class="hudTitle">Live Readout</div>
+          <div class="hudRow" id="hudSides"></div>
+          <div class="hudRow" id="hudAngles"></div>
+          <div class="statusPill" id="statusPill">&hellip;</div>
+          <div class="targetsRow" id="targetsRow"></div>
+          <button id="extraBtn" class="pxbtn primary extraBtn" hidden></button>
+        </aside>
+      </div>
+      <div class="controls">
+        <button id="hintBtn" class="pxbtn ghost">&#128161; Hint</button>
+        <div class="hintPanel" id="hintPanel" hidden></div>
+      </div>
+    </section>
+
+    <!-- CLOSEOUT -->
+    <section id="screenCloseout" class="screen" hidden>
+      <div class="closeoutCard">
+        <div class="closeoutLabel">Rule Unlocked</div>
+        <h2 id="closeoutTitle"></h2>
+        <svg id="closeoutDiagram" viewBox="0 0 400 260"></svg>
+        <p id="closeoutText"></p>
+        <div class="readGateTrack"><div class="readGateFill" id="readGateFill"></div></div>
+        <button id="continueBtn" class="pxbtn primary" disabled>Continue &#9654;</button>
+      </div>
+    </section>
+
+    <!-- COMPLETE -->
+    <section id="screenComplete" class="screen" hidden>
+      <div class="heroCard">
+        <h1>&#127942; You Found What Makes a Triangle Rigid</h1>
+        <p style="margin-bottom:8px;">Six clue-sets, six discoveries:</p>
+        <ul class="recap">
+          <li><b>SSS</b> &mdash; three sides &rarr; locked</li>
+          <li><b>SAS</b> &mdash; two sides + the angle between &rarr; locked</li>
+          <li><b>ASA / AAS</b> &mdash; a side + two angles &rarr; locked</li>
+          <li><b>AAA</b> &mdash; three angles only &rarr; flexible size (similar, not congruent)</li>
+          <li><b>SSA</b> &mdash; two sides + a non-included angle &rarr; can be ambiguous</li>
+          <li><b>The brace</b> &mdash; one diagonal turns a wobbly frame rigid</li>
+        </ul>
+        <p>That's why every truss, crane arm, and bridge girder you've ever seen is built from triangles.</p>
+        <button id="restartBtn" class="pxbtn primary">Play Again &#8635;</button>
+      </div>
+    </section>
+
+  </main>
+
+  <footer id="bottombar">
+    <button id="backBtn" class="pxbtn">&#9664; Back</button>
+  </footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================== helpers ============================== */
+const $ = (s)=>document.querySelector(s);
+const SVGNS = "http://www.w3.org/2000/svg";
+function el(tag, attrs){
+  const e = document.createElementNS(SVGNS, tag);
+  if(attrs) for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+function clamp(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
+function dist(p,q){ return Math.hypot(q.x-p.x, q.y-p.y); }
+function angleAt(P,Q,R){
+  const v1={x:Q.x-P.x,y:Q.y-P.y}, v2={x:R.x-P.x,y:R.y-P.y};
+  const m1=Math.hypot(v1.x,v1.y), m2=Math.hypot(v2.x,v2.y);
+  if(m1<1e-6||m2<1e-6) return 0;
+  let c=(v1.x*v2.x+v1.y*v2.y)/(m1*m2);
+  c=clamp(c,-1,1);
+  return Math.acos(c)*180/Math.PI;
+}
+function arcPts(centerMath, r, a0, a1, steps){
+  steps = steps||18;
+  const pts=[];
+  for(let i=0;i<=steps;i++){
+    const a=(a0+(a1-a0)*i/steps)*Math.PI/180;
+    pts.push({x:centerMath.x+r*Math.cos(a), y:centerMath.y+r*Math.sin(a)});
+  }
+  return pts;
+}
+
+/* ============================== audio ============================== */
+let audioCtx=null, soundOn=true;
+function ensureAudio(){
+  if(!audioCtx){
+    const AC = window.AudioContext||window.webkitAudioContext;
+    if(AC) audioCtx = new AC();
+  }
+  if(audioCtx && audioCtx.state==='suspended') audioCtx.resume();
+}
+function tone(freq,dur,type,vol,delay,slideTo){
+  if(!soundOn || !audioCtx) return;
+  type=type||'square'; vol=vol===undefined?0.16:vol; delay=delay||0;
+  const t0=audioCtx.currentTime+delay;
+  const osc=audioCtx.createOscillator(), gain=audioCtx.createGain();
+  osc.type=type; osc.frequency.setValueAtTime(freq,t0);
+  if(slideTo) osc.frequency.linearRampToValueAtTime(slideTo,t0+dur);
+  gain.gain.setValueAtTime(0,t0);
+  gain.gain.linearRampToValueAtTime(vol,t0+0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(t0); osc.stop(t0+dur+0.03);
+}
+function sndClick(){ tone(520,0.05,'square',0.10); }
+function sndTick(){ tone(660,0.05,'triangle',0.09); }
+function sndLock(){ tone(220,0.09,'square',0.18); tone(440,0.11,'square',0.16,0.09); tone(700,0.15,'square',0.14,0.18); }
+function sndBadge(){ tone(760,0.07,'triangle',0.15); tone(980,0.09,'triangle',0.13,0.06); }
+function sndWobble(){ tone(150,0.10,'sawtooth',0.06,0,100); }
+function sndComplete(){ [523,659,784,1047].forEach((f,i)=>tone(f,0.16,'square',0.15,i*0.11)); }
+function sndGateReady(){ tone(500,0.08,'triangle',0.14); tone(760,0.14,'triangle',0.14,0.09); }
+
+$('#soundBtn').addEventListener('click', ()=>{
+  soundOn=!soundOn;
+  $('#soundBtn').textContent = soundOn ? '\u{1F50A}' : '\u{1F507}';
+  if(soundOn){ ensureAudio(); sndClick(); }
+});
+
+/* ============================== drag engine ============================== */
+function svgPt(svg, evt){
+  const p = svg.createSVGPoint();
+  p.x = evt.clientX; p.y = evt.clientY;
+  const m = svg.getScreenCTM();
+  if(!m) return {x:0,y:0};
+  const inv = m.inverse();
+  const r = p.matrixTransform(inv);
+  return {x:r.x, y:r.y};
+}
+function makeDraggable(handle, svg, opts){
+  handle.style.touchAction='none';
+  handle.style.cursor='grab';
+  handle.addEventListener('pointerdown', (e)=>{
+    e.preventDefault();
+    ensureAudio();
+    try{ handle.setPointerCapture(e.pointerId); }catch(err){}
+    handle.style.cursor='grabbing';
+    if(opts.onStart) opts.onStart(svgPt(svg,e));
+    function move(ev){ if(opts.onMove) opts.onMove(svgPt(svg,ev)); }
+    function up(ev){
+      try{ handle.releasePointerCapture(e.pointerId); }catch(err){}
+      handle.style.cursor='grab';
+      handle.removeEventListener('pointermove',move);
+      handle.removeEventListener('pointerup',up);
+      handle.removeEventListener('pointercancel',up);
+      if(opts.onEnd) opts.onEnd(svgPt(svg,ev));
+    }
+    handle.addEventListener('pointermove',move);
+    handle.addEventListener('pointerup',up);
+    handle.addEventListener('pointercancel',up);
+  });
+}
+
+/* ============================== drawing helpers ============================== */
+function beamPoly(P,Q,th){
+  const dx=Q.x-P.x, dy=Q.y-P.y; const len=Math.hypot(dx,dy)||1;
+  const nx=-dy/len*th/2, ny=dx/len*th/2;
+  return [
+    [P.x+nx,P.y+ny],[Q.x+nx,Q.y+ny],[Q.x-nx,Q.y-ny],[P.x-nx,P.y-ny]
+  ].map(p=>p.join(',')).join(' ');
+}
+function addBeam(group, P, Q, th, fillMain, fillHi, strokeW){
+  const g = el('g',{});
+  const poly = el('polygon',{points:beamPoly(P,Q,th), fill:fillMain, stroke:'var(--ink)', 'stroke-width':strokeW||3, 'stroke-linejoin':'round'});
+  g.appendChild(poly);
+  if(fillHi){
+    const dx=Q.x-P.x, dy=Q.y-P.y; const len=Math.hypot(dx,dy)||1;
+    const nx=-dy/len, ny=dx/len;
+    const off=th*0.18;
+    const hi = el('polyline',{points:`${P.x+nx*off},${P.y+ny*off} ${Q.x+nx*off},${Q.y+ny*off}`, stroke:fillHi, 'stroke-width':Math.max(1.5,th*0.16), 'stroke-linecap':'round', opacity:0.85});
+    g.appendChild(hi);
+  }
+  group.appendChild(g);
+  return g;
+}
+function addPeg(group, P, r, fill){
+  const g = el('g',{});
+  g.appendChild(el('rect',{x:P.x-r,y:P.y-r,width:r*2,height:r*2, fill:fill||'var(--gold)', stroke:'var(--ink)', 'stroke-width':3}));
+  group.appendChild(g);
+  return g;
+}
+function addHandle(group, r, fill){
+  // Built ONCE per level and reused across renders — never recreated mid-drag,
+  // or the browser silently drops pointer capture and the drag dies after one move.
+  const g = el('g',{'class':'handle'});
+  const hit = el('circle',{cx:0,cy:0,r:Math.max(r,30), fill:'transparent'});
+  const vis = el('rect',{x:-r,y:-r,width:r*2,height:r*2, fill:fill||'var(--steel)', stroke:'var(--ink)', 'stroke-width':3});
+  g.appendChild(hit); g.appendChild(vis);
+  group.appendChild(g);
+  return {
+    g, vis, hit,
+    setPos(P){ g.setAttribute('transform', 'translate('+P.x+','+P.y+')'); },
+    setFill(c){ vis.setAttribute('fill', c); }
+  };
+}
+function addLenLabel(group, P, Q, text, color, xOff){
+  // A readable number placed right on the drawing, next to the beam it describes —
+  // so you never have to look away to a side panel to see if you're close.
+  const mx=(P.x+Q.x)/2, my=(P.y+Q.y)/2;
+  const x = mx+(xOff||0), y = my-8;
+  const w = text.length*8.6+14;
+  const g = el('g',{});
+  g.appendChild(el('rect',{x:x-w/2,y:y-13,width:w,height:22,rx:4, fill:'#1c2530', opacity:0.85}));
+  const t = el('text',{x,y:y+3,'font-size':14,'font-family':'Courier New,monospace','font-weight':'700', fill:color,'text-anchor':'middle'});
+  t.textContent = text;
+  g.appendChild(t);
+  group.appendChild(g);
+}
+function matchColor(errAbs, tol){
+  if(errAbs < tol) return {fill:'var(--good)', hi:'#a8f0bc', valClass:'ok'};
+  if(errAbs < tol*2.6) return {fill:'var(--warn)', hi:'#ffe6ad', valClass:'warm'};
+  return {fill:'var(--steel)', hi:'#dfe6ec', valClass:'cold'};
+}
+function fmt(n){ return (Math.round(n*10)/10).toFixed(1); }
+function fmtDeg(n){ return Math.round(n) + '°'; }
+
+/* ============================== HUD ============================== */
+function setHud(sidesArr, anglesArr, status, targets){
+  const sidesEl = $('#hudSides'), anglesEl = $('#hudAngles'), pill = $('#statusPill'), tRow=$('#targetsRow');
+  sidesEl.innerHTML = '<div style="font-size:10px;font-weight:700;color:#889;text-transform:uppercase;margin-bottom:2px;">Sides</div>' +
+    sidesArr.map(s=>`<div class="hudLine"><span class="lbl">${s.label}</span><span class="val ${s.given?'given':(s.cls||'')}">${s.text}</span></div>`).join('');
+  anglesEl.innerHTML = '<div style="font-size:10px;font-weight:700;color:#889;text-transform:uppercase;margin-bottom:2px;">Angles</div>' +
+    anglesArr.map(a=>`<div class="hudLine"><span class="lbl">${a.label}</span><span class="val ${a.given?'given':(a.cls||'')}">${a.text}</span></div>`).join('');
+  pill.textContent = status.text;
+  pill.className = 'statusPill' + (status.state?(' '+status.state):'');
+  if(targets && targets.length){
+    tRow.innerHTML='';
+    targets.forEach(t=>{
+      const b=document.createElement('div');
+      b.className='badge'+(t.on?' on':'');
+      b.textContent=(t.on?'✓ ':'') + t.label;
+      tRow.appendChild(b);
+    });
+  } else {
+    tRow.innerHTML='';
+  }
+}
+
+/* ============================== state / nav ============================== */
+const TOTAL_LEVELS = 6;
+let currentLevel = 0;      // 0 = intro, 1..6 = levels, 7 = complete
+let reachedLevel = 0;
+let showingCloseout = false;
+let activeLevelApi = null; // {teardown()}
+let closeoutTimer = null;
+let levelSolvedFlag = false; // guards against a level's onSolved() firing more than once per visit
+
+function buildDots(){
+  const wrap = $('#dots'); wrap.innerHTML='';
+  for(let i=1;i<=TOTAL_LEVELS;i++){
+    const d=document.createElement('div');
+    d.className='dot';
+    d.textContent=i;
+    d.dataset.level=i;
+    wrap.appendChild(d);
+  }
+  refreshDots();
+}
+function refreshDots(){
+  document.querySelectorAll('.dot').forEach(d=>{
+    const n=+d.dataset.level;
+    d.classList.toggle('reached', n<=reachedLevel+1);
+    d.classList.toggle('locked', n>reachedLevel+1);
+    d.classList.toggle('current', n===currentLevel && !showingCloseout);
+    d.classList.toggle('done', n<=reachedLevel && n!==currentLevel);
+  });
+}
+document.querySelectorAll.call(document,'.dot'); // noop safe
+$('#dots').addEventListener('click', (e)=>{
+  const d=e.target.closest('.dot');
+  if(!d) return;
+  const n=+d.dataset.level;
+  if(n<=reachedLevel+1){ sndClick(); goToLevel(n); }
+});
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.hidden = (s.id!==id));
+}
+
+function goToIntro(){
+  currentLevel=0; showingCloseout=false;
+  teardownActive();
+  showScreen('screenIntro');
+  refreshDots();
+  $('#backBtn').hidden = true;
+}
+function goToLevel(n){
+  teardownActive();
+  currentLevel=n; showingCloseout=false;
+  levelSolvedFlag=false;
+  showScreen('screenLevel');
+  $('#hintPanel').hidden = true;
+  $('#hintPanel').textContent='';
+  $('#hintBtn').textContent = '\u{1F4A1} Hint';
+  $('#extraBtn').hidden = true;
+  const cfg = LEVELS[n-1];
+  $('#levelLearning').textContent = "You're learning: " + cfg.learn;
+  $('#levelTitle').textContent = cfg.title;
+  $('#levelInstruction').textContent = cfg.instruction;
+  $('#hintPanel').dataset.text = cfg.hint;
+  const stage = $('#stage');
+  stage.innerHTML='';
+  $('#stageCard').classList.remove('solved');
+  activeLevelApi = cfg.build(stage, ()=>onLevelSolved(n));
+  refreshDots();
+  $('#backBtn').hidden = false;
+}
+function teardownActive(){
+  if(activeLevelApi && activeLevelApi.teardown) activeLevelApi.teardown();
+  activeLevelApi=null;
+  if(closeoutTimer){ clearInterval(closeoutTimer); closeoutTimer=null; }
+}
+function onLevelSolved(n){
+  if(levelSolvedFlag) return; // already triggered for this level visit — ignore repeats
+  levelSolvedFlag = true;
+  if(n>reachedLevel) reachedLevel=n;
+  refreshDots();
+  $('#stageCard').classList.add('solved');
+  sndLock();
+  setTimeout(()=>{ openCloseout(n); }, 850);
+}
+function openCloseout(n){
+  showingCloseout=true;
+  teardownActive();
+  showScreen('screenCloseout');
+  const cfg = LEVELS[n-1];
+  $('#closeoutTitle').textContent = cfg.closeout.title;
+  $('#closeoutText').textContent = cfg.closeout.text;
+  const dia = $('#closeoutDiagram');
+  dia.innerHTML='';
+  cfg.closeout.draw(dia);
+  refreshDots();
+  const words = cfg.closeout.text.split(/\s+/).length;
+  const durationMs = clamp(words*430 + 3000, 15000, 35000);
+  const fill = $('#readGateFill');
+  fill.style.width='0%'; fill.classList.remove('done');
+  const btn = $('#continueBtn');
+  btn.disabled = true; btn.textContent='Continue ▶';
+  const startT = Date.now();
+  closeoutTimer = setInterval(()=>{
+    const p = clamp((Date.now()-startT)/durationMs,0,1);
+    fill.style.width = (p*100).toFixed(1)+'%';
+    if(p>=1){
+      clearInterval(closeoutTimer); closeoutTimer=null;
+      fill.classList.add('done');
+      btn.disabled=false;
+      sndGateReady();
+    }
+  }, 80);
+}
+$('#continueBtn').addEventListener('click', ()=>{
+  if($('#continueBtn').disabled) return;
+  sndClick();
+  const n = currentLevel;
+  if(n>=TOTAL_LEVELS){ goToComplete(); }
+  else { goToLevel(n+1); }
+});
+function goToComplete(){
+  showingCloseout=false;
+  teardownActive();
+  currentLevel = TOTAL_LEVELS+1;
+  showScreen('screenComplete');
+  refreshDots();
+  sndComplete();
+  $('#backBtn').hidden=false;
+}
+$('#restartBtn').addEventListener('click', ()=>{
+  sndClick();
+  reachedLevel=0;
+  goToIntro();
+});
+$('#startBtn').addEventListener('click', ()=>{
+  ensureAudio(); sndClick();
+  goToLevel(1);
+});
+$('#backBtn').addEventListener('click', ()=>{
+  sndClick();
+  if(currentLevel===0) return;
+  if(currentLevel===TOTAL_LEVELS+1){ goToLevel(TOTAL_LEVELS); return; }
+  if(showingCloseout){ goToLevel(currentLevel); return; }
+  if(currentLevel<=1){ goToIntro(); return; }
+  goToLevel(currentLevel-1);
+});
+$('#hintBtn').addEventListener('click', ()=>{
+  sndClick();
+  const p=$('#hintPanel');
+  p.hidden=!p.hidden;
+  if(!p.hidden) p.textContent = p.dataset.text;
+  $('#hintBtn').textContent = p.hidden ? '\u{1F4A1} Hint' : '\u{1F648} Hide Hint';
+});
+
+/* ============================== small close-out diagram helpers ============================== */
+function diaTriangle(svgEl, opts){
+  // opts: {A,B,C in local 0-400x0-260 coords already}, sideLabels[3] (AB,BC,CA), angleLabels{A,B,C}, given{ab,bc,ca,A,B,C}, dashed{ab,bc,ca}
+  const g = el('g',{});
+  svgEl.appendChild(g);
+  return g;
+}
+
+/* ============================== LEVEL DEFINITIONS ============================== */
+const TOL_D = 0.45;   // distance tolerance, math units
+const TOL_A = 4.2;    // angle tolerance, degrees
+
+/* ---- shared transform maker ---- */
+function mkXform(originPx, scalePx){
+  return function(p){ return { x: originPx.x + p.x*scalePx, y: originPx.y - p.y*scalePx }; };
+}
+
+/* =========== LEVEL 1: SSS =========== */
+function buildLevel1(stage, onSolved){
+  const AB=7, CA_T=6, CB_T=8;
+  const xf = mkXform({x:120,y:472}, 46);
+  const A={x:0,y:0}, B={x:AB,y:0};
+  let C={x:4.6,y:1.6};
+  let found=false;
+
+  const gGround = el('g',{}); stage.appendChild(gGround);
+  const gBeams = el('g',{}); stage.appendChild(gBeams);
+  const gPts = el('g',{}); stage.appendChild(gPts);
+  const handle = addHandle(stage, 10, 'var(--steel)');
+
+  drawGround(gGround, xf, -2, AB+2, 0);
+  addPeg(gPts, xf(A), 8, 'var(--gold)');
+  addPeg(gPts, xf(B), 8, 'var(--gold)');
+
+  function render(){
+    gBeams.innerHTML='';
+    addBeam(gBeams, xf(A), xf(B), 16, 'var(--gold)', 'var(--gold-lt)');
+    const ca=dist(C,A), cb=dist(C,B);
+    const mCA = found? {fill:'var(--gold)',hi:'var(--gold-lt)',valClass:'ok'} : matchColor(Math.abs(ca-CA_T),TOL_D);
+    const mCB = found? {fill:'var(--gold)',hi:'var(--gold-lt)',valClass:'ok'} : matchColor(Math.abs(cb-CB_T),TOL_D);
+    addBeam(gBeams, xf(A), xf(C), 14, mCA.fill, mCA.hi);
+    addBeam(gBeams, xf(B), xf(C), 14, mCB.fill, mCB.hi);
+    if(!found){
+      addLenLabel(gBeams, xf(A), xf(C), fmt(ca)+' → '+fmt(CA_T), mCA.fill, -34);
+      addLenLabel(gBeams, xf(B), xf(C), fmt(cb)+' → '+fmt(CB_T), mCB.fill, 34);
+    }
+    handle.setPos(xf(C));
+    handle.setFill(found?'var(--good)':'var(--steel)');
+
+    const angA=angleAt(A,B,C), angB=angleAt(B,A,C), angC=angleAt(C,A,B);
+    setHud(
+      [
+        {label:'AB', text:fmt(AB), given:true},
+        {label:'CA (target 6.0)', text:fmt(ca), cls:mCA.valClass},
+        {label:'CB (target 8.0)', text:fmt(cb), cls:mCB.valClass}
+      ],
+      [
+        {label:'∠A', text:fmtDeg(angA)},
+        {label:'∠B', text:fmtDeg(angB)},
+        {label:'∠C', text:fmtDeg(angC)}
+      ],
+      found? {text:'\u{1F512} LOCKED — that\'s the only spot that works!', state:'found'} : {text:'Make BOTH numbers above turn green at the same time', state:''}
+    );
+  }
+  makeDraggable(handle.g, stage, {
+    onMove(pt){
+      if(found) return;
+      const m = {x:(pt.x-120)/46, y:(472-pt.y)/46};
+      C = {x:clamp(m.x,-2.5,AB+2.5), y:clamp(m.y,0.15,9)};
+      render();
+      const ca=dist(C,A), cb=dist(C,B);
+      if(Math.abs(ca-CA_T)<TOL_D && Math.abs(cb-CB_T)<TOL_D){
+        found=true; render(); onSolved();
+      }
+    }
+  });
+  render();
+  return { teardown(){} };
+}
+
+/* =========== LEVEL 2: SAS =========== */
+function buildLevel2(stage, onSolved){
+  const AB=8, ANG_A=50, AC_T=5;
+  const xf = mkXform({x:120,y:472}, 46);
+  const A={x:0,y:0}, B={x:AB,y:0};
+  let C={x:5.5,y:1.2};
+  let found=false;
+
+  const gGuide = el('g',{}); stage.appendChild(gGuide);
+  const gBeams = el('g',{}); stage.appendChild(gBeams);
+  const gPts = el('g',{}); stage.appendChild(gPts);
+  const handle = addHandle(stage, 10, 'var(--steel)');
+
+  // static guide (angle wedge + ray + ground) — never changes
+  drawGround(gGuide, xf, -2, AB+2, 0);
+  const wedgePts = [A].concat(arcPts(A, 2.1, 0, ANG_A, 20)).map(xf);
+  gGuide.appendChild(el('polygon',{points:wedgePts.map(p=>p.x+','+p.y).join(' '), fill:'rgba(244,196,48,0.30)', stroke:'none'}));
+  const rayEnd = {x:7*Math.cos(ANG_A*Math.PI/180), y:7*Math.sin(ANG_A*Math.PI/180)};
+  const rA=xf(A), rE=xf(rayEnd);
+  gGuide.appendChild(el('line',{x1:rA.x,y1:rA.y,x2:rE.x,y2:rE.y, stroke:'var(--gold-dk)', 'stroke-width':3, 'stroke-dasharray':'8 7'}));
+  addPeg(gPts, xf(A), 8, 'var(--gold)');
+  addPeg(gPts, xf(B), 8, 'var(--gold)');
+
+  function render(){
+    gBeams.innerHTML='';
+    addBeam(gBeams, xf(A), xf(B), 16, 'var(--gold)', 'var(--gold-lt)');
+    const ac = dist(A,C);
+    const angA = angleAt(A,B,C);
+    const errA = Math.abs(angA-ANG_A), errD = Math.abs(ac-AC_T);
+    const m = found? {fill:'var(--gold)',hi:'var(--gold-lt)',valClass:'ok'} : matchColor(Math.max(errD, errA*0.14), TOL_D);
+    addBeam(gBeams, xf(A), xf(C), 14, m.fill, m.hi);
+    // dashed BC just to complete the visual triangle (not a given constraint)
+    const bc = dist(B,C);
+    const bcLine = el('line',{x1:xf(B).x,y1:xf(B).y,x2:xf(C).x,y2:xf(C).y, stroke:'var(--steel-dk)','stroke-width':2,'stroke-dasharray':'5 5', opacity:0.55});
+    gBeams.appendChild(bcLine);
+    if(!found){
+      addLenLabel(gBeams, xf(A), xf(C), 'length '+fmt(ac)+' → '+fmt(AC_T), m.fill, -40);
+      const angClr = errA<TOL_A?'var(--good)':(errA<TOL_A*2.4?'var(--warn)':'var(--steel-lt)');
+      addLenLabel(gBeams, xf(A), xf(A), 'angle '+fmtDeg(angA)+' → 50°', angClr, 70);
+    }
+
+    handle.setPos(xf(C));
+    handle.setFill(found?'var(--good)':'var(--steel)');
+
+    setHud(
+      [
+        {label:'AB', text:fmt(AB), given:true},
+        {label:'AC (target 5.0)', text:fmt(ac), cls:errD<TOL_D?'ok':(errD<TOL_D*2.6?'warm':'cold')},
+        {label:'BC', text:fmt(bc)}
+      ],
+      [
+        {label:'∠A (target 50°)', text:fmtDeg(angA), cls:errA<TOL_A?'ok':(errA<TOL_A*2.4?'warm':'cold')},
+        {label:'∠B', text:fmtDeg(angleAt(B,A,C))},
+        {label:'∠C', text:fmtDeg(angleAt(C,A,B))}
+      ],
+      found? {text:'\u{1F512} LOCKED — the third side was forced!', state:'found'} : {text:'Get the length AND the angle to both turn green', state:''}
+    );
+  }
+  makeDraggable(handle.g, stage, {
+    onMove(pt){
+      if(found) return;
+      const m = {x:(pt.x-120)/46, y:(472-pt.y)/46};
+      C = {x:clamp(m.x,-2.5,AB+3), y:clamp(m.y,0.15,9)};
+      render();
+      const ac=dist(A,C), angA=angleAt(A,B,C);
+      if(Math.abs(ac-AC_T)<TOL_D && Math.abs(angA-ANG_A)<TOL_A){
+        found=true; render(); onSolved();
+      }
+    }
+  });
+  render();
+  return { teardown(){} };
+}
+
+/* =========== LEVEL 3: ASA / AAS =========== */
+function buildLevel3(stage, onSolved){
+  const AB=9, ANG_A=40, ANG_B=65;
+  const xf = mkXform({x:95,y:472}, 42);
+  const A={x:0,y:0}, B={x:AB,y:0};
+  let C={x:3.5,y:1.0};
+  let found=false;
+
+  const gGuide = el('g',{}); stage.appendChild(gGuide);
+  const gBeams = el('g',{}); stage.appendChild(gBeams);
+  const gPts = el('g',{}); stage.appendChild(gPts);
+  const handle = addHandle(stage, 10, 'var(--steel)');
+
+  drawGround(gGuide, xf, -2, AB+2, 0);
+  const wedgeA = [A].concat(arcPts(A,1.8,0,ANG_A,16)).map(xf);
+  gGuide.appendChild(el('polygon',{points:wedgeA.map(p=>p.x+','+p.y).join(' '), fill:'rgba(244,196,48,0.30)'}));
+  const wedgeB = [B].concat(arcPts(B,1.8,180-ANG_B,180,16)).map(xf);
+  gGuide.appendChild(el('polygon',{points:wedgeB.map(p=>p.x+','+p.y).join(' '), fill:'rgba(244,196,48,0.30)'}));
+  const rEndA = xf({x:11*Math.cos(ANG_A*Math.PI/180), y:11*Math.sin(ANG_A*Math.PI/180)});
+  const rA = xf(A);
+  gGuide.appendChild(el('line',{x1:rA.x,y1:rA.y,x2:rEndA.x,y2:rEndA.y, stroke:'var(--gold-dk)','stroke-width':3,'stroke-dasharray':'8 7'}));
+  const dirB = (180-ANG_B)*Math.PI/180;
+  const rEndB = xf({x:AB+11*Math.cos(dirB), y:11*Math.sin(dirB)});
+  const rB = xf(B);
+  gGuide.appendChild(el('line',{x1:rB.x,y1:rB.y,x2:rEndB.x,y2:rEndB.y, stroke:'var(--gold-dk)','stroke-width':3,'stroke-dasharray':'8 7'}));
+  addPeg(gPts, xf(A), 8, 'var(--gold)');
+  addPeg(gPts, xf(B), 8, 'var(--gold)');
+
+  function render(){
+    gBeams.innerHTML='';
+    addBeam(gBeams, xf(A), xf(B), 16, 'var(--gold)', 'var(--gold-lt)');
+    const angA=angleAt(A,B,C), angB=angleAt(B,A,C);
+    const errA=Math.abs(angA-ANG_A), errB=Math.abs(angB-ANG_B);
+    const okA=errA<TOL_A, okB=errB<TOL_A;
+    const cA = found? {fill:'var(--gold)',hi:'var(--gold-lt)'} : matchColor(errA*0.14,TOL_D);
+    const cB = found? {fill:'var(--gold)',hi:'var(--gold-lt)'} : matchColor(errB*0.14,TOL_D);
+    addBeam(gBeams, xf(A), xf(C), 14, cA.fill, cA.hi);
+    addBeam(gBeams, xf(B), xf(C), 14, cB.fill, cB.hi);
+    if(!found){
+      addLenLabel(gBeams, xf(A), xf(A), fmtDeg(angA)+' → 40°', okA?'var(--good)':(errA<TOL_A*2.4?'var(--warn)':'var(--steel-lt)'), 60);
+      addLenLabel(gBeams, xf(B), xf(B), fmtDeg(angB)+' → 65°', okB?'var(--good)':(errB<TOL_A*2.4?'var(--warn)':'var(--steel-lt)'), -60);
+    }
+    handle.setPos(xf(C));
+    handle.setFill(found?'var(--good)':'var(--steel)');
+
+    setHud(
+      [
+        {label:'AB', text:fmt(AB), given:true},
+        {label:'CA', text:fmt(dist(C,A))},
+        {label:'CB', text:fmt(dist(C,B))}
+      ],
+      [
+        {label:'∠A (target 40°)', text:fmtDeg(angA), cls:okA?'ok':(errA<TOL_A*2.4?'warm':'cold')},
+        {label:'∠B (target 65°)', text:fmtDeg(angB), cls:okB?'ok':(errB<TOL_A*2.4?'warm':'cold')},
+        {label:'∠C', text:fmtDeg(angleAt(C,A,B))}
+      ],
+      found? {text:'\u{1F512} LOCKED — the rays only cross once!', state:'found'} : {text:'Get BOTH angle labels to turn green at once', state:''}
+    );
+  }
+  makeDraggable(handle.g, stage, {
+    onMove(pt){
+      if(found) return;
+      const m = {x:(pt.x-95)/42, y:(472-pt.y)/42};
+      C = {x:clamp(m.x,-3,AB+3), y:clamp(m.y,0.15,9)};
+      render();
+      const angA=angleAt(A,B,C), angB=angleAt(B,A,C);
+      if(Math.abs(angA-ANG_A)<TOL_A && Math.abs(angB-ANG_B)<TOL_A){
+        found=true; render(); onSolved();
+      }
+    }
+  });
+  render();
+  return { teardown(){} };
+}
+
+/* =========== LEVEL 4: AAA =========== */
+function buildLevel4(stage, onSolved){
+  const ANG_A=55, ANG_B=65;
+  const xf = mkXform({x:70,y:472}, 34);
+  const A={x:0,y:0};
+  let L=8.2;
+  const LMIN=4, LMAX=13.4, SMALL=6, BIG=10.6;
+  let smallFound=false, bigFound=false;
+
+  const gGuide = el('g',{}); stage.appendChild(gGuide);
+  const gBeams = el('g',{}); stage.appendChild(gBeams);
+  const gPts = el('g',{}); stage.appendChild(gPts);
+  const handle = addHandle(stage, 11, 'var(--wood)');
+
+  function computeC(Lval){
+    const tA=Math.tan(ANG_A*Math.PI/180), tB=Math.tan(ANG_B*Math.PI/180);
+    const x = Lval*tB/(tA+tB);
+    const y = x*tA;
+    return {x,y};
+  }
+
+  drawGround(gGuide, xf, -2, LMAX+2, 0);
+  const wedgeA0=[A].concat(arcPts(A,1.6,0,ANG_A,14)).map(xf);
+  gGuide.appendChild(el('polygon',{points:wedgeA0.map(p=>p.x+','+p.y).join(' '), fill:'rgba(244,196,48,0.30)'}));
+  const rA0=xf(A), rEndA0=xf({x:LMAX*1.1*Math.cos(ANG_A*Math.PI/180), y:LMAX*1.1*Math.sin(ANG_A*Math.PI/180)});
+  gGuide.appendChild(el('line',{x1:rA0.x,y1:rA0.y,x2:rEndA0.x,y2:rEndA0.y, stroke:'var(--gold-dk)','stroke-width':3,'stroke-dasharray':'8 7'}));
+  addPeg(gPts, xf(A), 8, 'var(--gold)');
+  const gWedgeB = el('g',{}); stage.insertBefore(gWedgeB, gBeams); // B's wedge moves, rebuilt each render
+  const gCPeg = el('g',{}); stage.insertBefore(gCPeg, handle.g); // C moves, rebuilt each render (not draggable, stays under handle)
+
+  function render(){
+    const B={x:L,y:0};
+    const C=computeC(L);
+    gWedgeB.innerHTML='';
+    const wedgeB=[B].concat(arcPts(B,1.6,180-ANG_B,180,14)).map(xf);
+    gWedgeB.appendChild(el('polygon',{points:wedgeB.map(p=>p.x+','+p.y).join(' '), fill:'rgba(244,196,48,0.30)'}));
+
+    gBeams.innerHTML=''; gCPeg.innerHTML='';
+    addBeam(gBeams, xf(A), xf(B), 14, 'var(--steel)', 'var(--steel-lt)');
+    addBeam(gBeams, xf(A), xf(C), 14, 'var(--steel)', 'var(--steel-lt)');
+    addBeam(gBeams, xf(B), xf(C), 14, 'var(--steel)', 'var(--steel-lt)');
+    addPeg(gCPeg, xf(C), 7, 'var(--steel-dk)');
+    handle.setPos(xf(B));
+
+    setHud(
+      [
+        {label:'AB', text:fmt(L)},
+        {label:'BC', text:fmt(dist(B,C))},
+        {label:'CA', text:fmt(dist(C,A))}
+      ],
+      [
+        {label:'∠A (given)', text:fmtDeg(ANG_A), given:true},
+        {label:'∠B (given)', text:fmtDeg(ANG_B), given:true},
+        {label:'∠C', text:fmtDeg(180-ANG_A-ANG_B)}
+      ],
+      (smallFound&&bigFound)? {text:'\u{1F30A} FLEXIBLE — infinite sizes, same shape!', state:'flex'} : {text:'↔️ Drag the handle — try very small AND very large', state:''},
+      [ {label:'small', on:smallFound}, {label:'big', on:bigFound} ]
+    );
+  }
+  makeDraggable(handle.g, stage, {
+    onMove(pt){
+      const m = (pt.x-70)/34;
+      L = clamp(m, LMIN, LMAX);
+      render();
+      let changed=false;
+      if(!smallFound && L<SMALL){ smallFound=true; changed=true; }
+      if(!bigFound && L>BIG){ bigFound=true; changed=true; }
+      if(changed){ sndBadge(); render(); }
+      if(smallFound && bigFound){ onSolved(); }
+    }
+  });
+  render();
+  return { teardown(){} };
+}
+
+/* =========== LEVEL 5: SSA (ambiguous) =========== */
+function buildLevel5(stage, onSolved){
+  const AB=10, ANG_A=30, BC=6;
+  const xf = mkXform({x:70,y:472}, 40);
+  const A={x:0,y:0}, B={x:AB,y:0};
+  const rad = ANG_A*Math.PI/180;
+  const ux=Math.cos(rad), uy=Math.sin(rad);
+
+  function solveSSA(){
+    const b=-2*AB*ux, c=AB*AB-BC*BC;
+    const disc=b*b-4*c;
+    if(disc<0) return [];
+    const sq=Math.sqrt(disc);
+    return [(-b-sq)/2, (-b+sq)/2].filter(t=>t>0.05).sort((x,y)=>x-y);
+  }
+  const ts = solveSSA();
+  const tMid = ts.length===2 ? (ts[0]+ts[1])/2 : 0;
+
+  let theta = 95; // degrees, angle of the swinging arm around B
+  let sol1=false, sol2=false;
+
+  const gGuide=el('g',{}); stage.appendChild(gGuide);
+  const gBeams=el('g',{}); stage.appendChild(gBeams);
+  const gPts=el('g',{}); stage.appendChild(gPts);
+  const handle = addHandle(stage, 10, 'var(--steel)');
+
+  function pFromTheta(th){
+    const r=th*Math.PI/180;
+    return {x:B.x+BC*Math.cos(r), y:B.y+BC*Math.sin(r)};
+  }
+
+  // static guide — angle wedge, ray, swing-path circle, ground, fixed pegs
+  drawGround(gGuide, xf, -2, AB+3, 0);
+  const wedgeA=[A].concat(arcPts(A,1.6,0,ANG_A,14)).map(xf);
+  gGuide.appendChild(el('polygon',{points:wedgeA.map(p=>p.x+','+p.y).join(' '), fill:'rgba(244,196,48,0.30)'}));
+  const rA=xf(A), rEnd=xf({x:14*ux,y:14*uy});
+  gGuide.appendChild(el('line',{x1:rA.x,y1:rA.y,x2:rEnd.x,y2:rEnd.y, stroke:'var(--gold-dk)','stroke-width':3,'stroke-dasharray':'8 7'}));
+  const circPts = arcPts(B,BC,0,360,48).map(xf);
+  gGuide.appendChild(el('polyline',{points:circPts.map(p=>p.x+','+p.y).join(' '), stroke:'rgba(90,110,130,0.35)','stroke-width':2,fill:'none','stroke-dasharray':'3 5'}));
+  addPeg(gPts, xf(A), 8, 'var(--gold)');
+  addPeg(gPts, xf(B), 8, 'var(--gold)');
+
+  function render(){
+    const P = pFromTheta(theta);
+    gBeams.innerHTML='';
+    addBeam(gBeams, xf(A), xf(B), 16, 'var(--gold)', 'var(--gold-lt)');
+    const perp = Math.abs(P.x*(-uy)+P.y*ux);
+    const onRay = perp<TOL_D;
+    const armColor = onRay ? {fill:'var(--good)',hi:'#a8f0bc'} : matchColor(perp, TOL_D);
+    addBeam(gBeams, xf(B), xf(P), onRay?16:10, armColor.fill, armColor.hi);
+    const caLine = el('line',{x1:xf(A).x,y1:xf(A).y,x2:xf(P).x,y2:xf(P).y, stroke:'var(--steel-dk)','stroke-width':2,'stroke-dasharray':'5 5', opacity:0.5});
+    gBeams.appendChild(caLine);
+    handle.setPos(xf(P));
+    handle.setFill(onRay?'var(--good)':'var(--steel)');
+
+    const angA = angleAt(A,B,P);
+    setHud(
+      [
+        {label:'AB', text:fmt(AB), given:true},
+        {label:'BC (target 6.0)', text:fmt(dist(B,P)), given:true},
+        {label:'CA', text:fmt(dist(A,P))}
+      ],
+      [
+        {label:'∠A (target 30°)', text:fmtDeg(angA), cls:Math.abs(angA-ANG_A)<TOL_A?'ok':''},
+        {label:'∠B', text:fmtDeg(angleAt(B,A,P))},
+        {label:'∠C', text:fmtDeg(angleAt(P,A,B))}
+      ],
+      (sol1&&sol2)? {text:'\u{1F30A} TWO different triangles both work!', state:'flex'} : {text:'\u{1F500} Swing the arm around B — find where it touches the ray', state:''},
+      [ {label:'shape 1', on:sol1}, {label:'shape 2', on:sol2} ]
+    );
+  }
+  makeDraggable(handle.g, stage, {
+    onMove(pt){
+      const m = {x:(pt.x-70)/40, y:(472-pt.y)/40};
+      const dx=m.x-B.x, dy=m.y-B.y;
+      theta = Math.atan2(dy,dx)*180/Math.PI;
+      render();
+      const P = pFromTheta(theta);
+      const perp = Math.abs(P.x*(-uy)+P.y*ux);
+      const t = P.x*ux+P.y*uy;
+      if(perp<TOL_D && ts.length===2){
+        let changed=false;
+        if(t<tMid && !sol1){ sol1=true; changed=true; }
+        if(t>tMid && !sol2){ sol2=true; changed=true; }
+        if(changed){ sndBadge(); render(); }
+      }
+      if(sol1 && sol2){ onSolved(); }
+    }
+  });
+  render();
+  return { teardown(){} };
+}
+
+/* =========== LEVEL 6: Brace the Gate (capstone) =========== */
+function buildLevel6(stage, onSolved){
+  const BASE=8, POST=5;
+  const xf = mkXform({x:250,y:472}, 40);
+  const BL={x:0,y:0}, BR={x:BASE,y:0};
+  let s=0;
+  const SMAX=4.25, RACK_T=1.6;
+  let racked=false, braced=false, braceLen=null, braceEndpoints=null;
+
+  const gGround=el('g',{}); stage.appendChild(gGround);
+  const gFrame=el('g',{}); stage.appendChild(gFrame);
+  const gBrace=el('g',{}); stage.appendChild(gBrace);
+  const gPts=el('g',{}); stage.appendChild(gPts);
+  const handle = addHandle(stage, 11, 'var(--steel)');
+
+  function frameFromS(sv){
+    const h=Math.sqrt(Math.max(0.4, POST*POST - sv*sv));
+    return { TL:{x:sv,y:h}, TR:{x:sv+BASE,y:h}, h };
+  }
+
+  drawGround(gGround, xf, -3, BASE+3, 0);
+  addPeg(gPts, xf(BL), 8, 'var(--dirt-dk)');
+  addPeg(gPts, xf(BR), 8, 'var(--dirt-dk)');
+  const gTRPeg = el('g',{}); stage.insertBefore(gTRPeg, handle.g); // TR moves with s, rebuilt each render
+
+  function render(){
+    const {TL,TR} = frameFromS(s);
+    gFrame.innerHTML=''; gBrace.innerHTML=''; gTRPeg.innerHTML='';
+    addBeam(gFrame, xf(BL), xf(TL), 14, 'var(--wood)', 'var(--wood-lt)');
+    addBeam(gFrame, xf(BR), xf(TR), 14, 'var(--wood)', 'var(--wood-lt)');
+    addBeam(gFrame, xf(TL), xf(TR), 14, 'var(--wood)', 'var(--wood-lt)');
+    addBeam(gFrame, xf(BL), xf(BR), 18, 'var(--dirt)', 'var(--dirt-dk)');
+    if(braced && braceEndpoints){
+      addBeam(gBrace, xf(braceEndpoints[0]), xf(braceEndpoints[1]), 12, 'var(--gold)', 'var(--gold-lt)');
+    }
+    addPeg(gTRPeg, xf(TR), 7, 'var(--wood-dk)');
+    handle.setPos(xf(TL));
+    handle.setFill(braced?'var(--good)':'var(--steel)');
+
+    setHud(
+      [
+        {label:'Ground', text:fmt(BASE), given:true},
+        {label:'Posts', text:fmt(POST)+' , '+fmt(POST), given:true},
+        {label:'Top beam', text:fmt(dist(TL,TR))}
+      ],
+      [
+        {label:'Shear', text:fmt(s)},
+        {label:'Diagonal', text: braced? fmt(braceLen) : fmt(dist(BL,TR))},
+        {label:'', text:''}
+      ],
+      braced? {text:'\u{1F512} LOCKED BY THE BRACE!', state:'found'} : (racked? {text:'\u{1F30A} RACKS FREELY — now brace it!', state:'flex'} : {text:'\u{1F91A} Drag the top-left corner sideways', state:''}),
+      [ {label:'racked it', on:racked}, {label:'braced it', on:braced} ]
+    );
+    $('#extraBtn').hidden = !(racked && !braced);
+    $('#extraBtn').textContent = '\u{1F527} Add Diagonal Brace';
+  }
+  $('#extraBtn').onclick = ()=>{
+    if(!(racked && !braced)) return;
+    const {TL,TR} = frameFromS(s);
+    braceLen = dist(BL,TR);
+    braceEndpoints = [BL, TR];
+    braced = true;
+    sndLock();
+    render();
+    onSolved();
+  };
+  makeDraggable(handle.g, stage, {
+    onMove(pt){
+      if(braced){ sndWobble(); return; }
+      const m = (pt.x-250)/40;
+      s = clamp(m, -SMAX, SMAX);
+      render();
+      if(!racked && Math.abs(s)>RACK_T){ racked=true; sndBadge(); render(); }
+    }
+  });
+  render();
+  return { teardown(){ $('#extraBtn').onclick=null; } };
+}
+
+/* ============================== shared ground drawing ============================== */
+function drawGround(group, xf, x0, x1, y){
+  const p0=xf({x:x0,y:y}), p1=xf({x:x1,y:y});
+  group.appendChild(el('rect',{x:0,y:p0.y,width:880,height:520-p0.y, fill:'var(--grass-dk)'}));
+  group.appendChild(el('rect',{x:0,y:p0.y,width:880,height:8, fill:'var(--grass)'}));
+}
+
+/* ============================== close-out diagrams ============================== */
+function ddBeam(g,P,Q,th,col){ g.appendChild(el('polygon',{points:beamPoly(P,Q,th), fill:col, stroke:'#222a33','stroke-width':3,'stroke-linejoin':'round'})); }
+function ddLabel(g,P,text,dx,dy){
+  const x=P.x+(dx||0), y=P.y+(dy||0);
+  const w = text.length*7.6+10;
+  g.appendChild(el('rect',{x:x-w/2,y:y-13,width:w,height:17, fill:'#fbf3df', opacity:0.92, rx:2}));
+  const t=el('text',{x, y, 'font-size':13,'font-family':'Courier New,monospace','font-weight':'700', fill:'#222a33','text-anchor':'middle'});
+  t.textContent=text; g.appendChild(t);
+}
+
+function drawCloseout1(svg){
+  const A={x:70,y:210}, B={x:300,y:210}, C={x:150,y:60};
+  ddBeam(svg,A,B,12,'#f4c430'); ddBeam(svg,B,C,12,'#f4c430'); ddBeam(svg,C,A,12,'#f4c430');
+  ddLabel(svg,{x:(A.x+B.x)/2,y:A.y+22},'side c');
+  ddLabel(svg,{x:(A.x+C.x)/2-24,y:(A.y+C.y)/2},'side b');
+  ddLabel(svg,{x:(B.x+C.x)/2+24,y:(B.y+C.y)/2},'side a');
+}
+function drawCloseout2(svg){
+  const A={x:70,y:210}, B={x:300,y:210}, C={x:150,y:60};
+  ddBeam(svg,A,B,10,'#8a97a6'); ddBeam(svg,B,C,10,'#8a97a6');
+  const dash = el('line',{x1:C.x,y1:C.y,x2:A.x,y2:A.y, stroke:'#222a33','stroke-width':2,'stroke-dasharray':'6 6'}); svg.appendChild(dash);
+  const wedge=[A].concat(arcPts(A,30,0,-56,16).map(p=>({x:p.x,y:-p.y}))); // approximate wedge visual
+  ddLabel(svg,{x:130,y:190},'angle');
+  ddLabel(svg,{x:(A.x+B.x)/2,y:A.y+22},'side');
+  ddLabel(svg,{x:(B.x+C.x)/2+26,y:(B.y+C.y)/2},'side');
+  ddLabel(svg,{x:(A.x+C.x)/2-34,y:(A.y+C.y)/2},'forced');
+}
+function drawCloseout3(svg){
+  const A={x:70,y:210}, B={x:300,y:210}, C={x:170,y:60};
+  ddBeam(svg,A,B,12,'#f4c430');
+  ddBeam(svg,A,C,9,'#8a97a6'); ddBeam(svg,B,C,9,'#8a97a6');
+  ddLabel(svg,{x:100,y:190},'∠');
+  ddLabel(svg,{x:270,y:190},'∠');
+  ddLabel(svg,{x:(A.x+B.x)/2,y:A.y+22},'side');
+}
+function drawCloseout4(svg){
+  const A={x:60,y:220};
+  function tri(scale,col){
+    const B={x:A.x+90*scale,y:220}, C={x:A.x+35*scale,y:220-70*scale};
+    ddBeam(svg,A,B,6,col); ddBeam(svg,B,C,6,col); ddBeam(svg,C,A,6,col);
+  }
+  tri(1.0,'#8a97a6'); tri(2.15,'#f4c430');
+  ddLabel(svg,{x:200,y:245},'same angles, any size');
+}
+function drawCloseout5(svg){
+  const A={x:60,y:210}, B={x:270,y:210};
+  const C1={x:170,y:120}, C2={x:230,y:70};
+  ddBeam(svg,A,B,10,'#f4c430');
+  ddBeam(svg,B,C1,8,'#8a97a6'); ddBeam(svg,A,C1,3,'#c6cdd4');
+  ddBeam(svg,B,C2,8,'#e0a83e'); ddBeam(svg,A,C2,3,'#f0dca0');
+  ddLabel(svg,{x:150,y:250},'two valid triangles');
+}
+function drawCloseout6(svg){
+  const BL={x:70,y:210}, BR={x:270,y:210}, TL={x:100,y:80}, TR={x:300,y:80};
+  ddBeam(svg,BL,BR,12,'#8a5a34');
+  ddBeam(svg,BL,TL,8,'#c98a4b'); ddBeam(svg,BR,TR,8,'#c98a4b'); ddBeam(svg,TL,TR,8,'#c98a4b');
+  ddBeam(svg,BL,TR,6,'#f4c430');
+  ddLabel(svg,{x:190,y:245},'one brace = two rigid triangles');
+}
+
+/* ============================== LEVELS registry ============================== */
+const LEVELS = [
+  {
+    learn:'three sides lock a triangle (SSS)',
+    title:'Level 1 — Three Fixed Sides',
+    instruction:'Drag the gray corner around the grass. Each loose beam shows its length and its target — get both numbers to match and turn green.',
+    hint:'Move the corner closer to A to shrink the left number, or closer to B to shrink the right one. One spot makes both match.',
+    build: buildLevel1,
+    closeout:{ title:'Three Sides Lock It', text:"When all three side lengths are fixed, there is only one triangle shape they can form — flip it over and it's the same triangle. Mathematicians call this the Side-Side-Side rule: match all three sides and two triangles are congruent. No wiggle room, no second shape. That's rigidity — the same reason a triangle brace never bends in a bridge or a roof.", draw: drawCloseout1 }
+  },
+  {
+    learn:'two sides plus the angle between them (SAS)',
+    title:'Level 2 — Two Sides + The Angle Between',
+    instruction:'Drag the gray corner. You need BOTH the length and the angle labels to turn green at the same time.',
+    hint:'Line up with the dashed golden ray first (that fixes the angle), then slide along it until the length also reads 5.0.',
+    build: buildLevel2,
+    closeout:{ title:'Two Sides + The Angle Between', text:"Two side lengths alone don't lock a triangle — but add the angle sandwiched between them, and there's only one shape left. That's the Side-Angle-Side rule: match two sides and their included angle, and the third side is forced. The angle has to be the one between the two given sides — anywhere else, and the lock doesn't hold.", draw: drawCloseout2 }
+  },
+  {
+    learn:'a side plus two angles (ASA / AAS)',
+    title:'Level 3 — A Side + Two Angles',
+    instruction:'Drag the gray corner. Both angle labels need to turn green at the same time — that only happens where the two dashed rays cross.',
+    hint:'Follow the left ray down from A, then nudge along it until the right-hand angle label also turns green.',
+    build: buildLevel3,
+    closeout:{ title:'A Side and Two Angles', text:"Fix one side length and the two angles touching it, and the two remaining sides have nowhere else to go — their rays only cross in one place. That's Angle-Side-Angle (or Angle-Angle-Side, if the side isn't between the angles). Different clues, same result: the triangle is completely locked, just like Side-Side-Side and Side-Angle-Side.", draw: drawCloseout3 }
+  },
+  {
+    learn:'three angles alone don’t lock size (AAA)',
+    title:'Level 4 — Three Angles, No Side',
+    instruction:'Both angles are locked — but no side length is given at all. Drag the handle to make the triangle very small, then very large.',
+    hint:'There’s no length to match here. Just drag all the way one way, then all the way the other.',
+    build: buildLevel4,
+    closeout:{ title:'Angles Alone Don’t Lock Size', text:"Three angles with no side length gave you an entire family of triangles — tiny ones, huge ones, all the exact same shape. Angles fix a triangle's shape, but never its size. Same-shaped, different-sized triangles are called similar, not congruent. That's why 'AAA' isn't a congruence rule — it only tells you the shape, never the scale.", draw: drawCloseout4 }
+  },
+  {
+    learn:'SSA can be ambiguous — sometimes two triangles fit',
+    title:'Level 5 — The Swinging Arm',
+    instruction:'The angle at A and both side lengths are given — but the angle is NOT between them. Swing the arm around B and find every spot where it lands exactly on the golden ray.',
+    hint:'Swing the arm slowly in a full circle around B — watch for the moments it crosses the golden ray.',
+    build: buildLevel5,
+    closeout:{ title:'The Swinging Arm Problem', text:"Two sides and an angle NOT between them can swing to two completely different triangles — you just found both. Sometimes SSA gives one triangle, sometimes two, sometimes none, depending on the numbers. Because it's unreliable, mathematicians don't count Side-Side-Angle as a congruence rule — even though it looks like it should work just like SAS.", draw: drawCloseout5 }
+  },
+  {
+    learn:'why triangles brace real structures',
+    title:'Level 6 — Brace the Gate',
+    instruction:'This gate frame has every side length fixed — drag the top-left corner and watch it rack anyway. Then add a diagonal brace and see what changes.',
+    hint:'Rack the gate first so you can feel it flex, then tap "Add Diagonal Brace" to lock it.',
+    build: buildLevel6,
+    closeout:{ title:'Why Bridges Are Built From Triangles', text:"A four-sided frame can always rack into a slanted parallelogram, even with every side length fixed — quadrilaterals just aren't rigid. Add one diagonal brace, and you split the frame into two triangles, each locked by Side-Side-Side. That's the real reason trusses, cranes, and bridges are built from triangles instead of squares: triangles are the only shape that can't wobble.", draw: drawCloseout6 }
+  }
+];
+
+/* ============================== boot ============================== */
+buildDots();
+goToIntro();
+
+})();
+</script>
+</body>
+</html>
