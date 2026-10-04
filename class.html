@@ -108,13 +108,23 @@
     letter-spacing:-0.005em;
   }
   .card .meta{
-    margin-top:4px;
+    display:block;
+    margin-top:5px;
     font-size:13.5px;color:var(--text-dimmer);
   }
   .card:first-child .num{
     background:var(--gold-soft);color:var(--gold);
   }
-  .card:first-child .meta{color:var(--gold);}
+  .card:first-child .meta{
+    display:inline-block;
+    margin-top:6px;
+    padding:3px 9px;
+    border-radius:999px;
+    background:var(--gold-soft);
+    color:var(--gold);
+    font-size:12px;font-weight:700;
+    letter-spacing:.02em;
+  }
   .card .chev{
     flex:none;color:var(--text-dimmer);
     font-size:22px;line-height:1;
@@ -230,6 +240,17 @@
       return g && typeof g.file === "string" && g.file;
     }) : [];
 
+    // Newest first, driven by each game's own "added" date — never by however
+    // it happens to be ordered in the JSON. A stable sort means games without
+    // a date (or sharing one) just keep their original relative order instead
+    // of jumping around.
+    games = games.slice().sort(function(a, b){
+      var da = (typeof a.added === "string") ? a.added : "";
+      var db = (typeof b.added === "string") ? b.added : "";
+      if(da === db) return 0;
+      return da > db ? -1 : 1;
+    });
+
     if(games.length === 0){
       subEl.hidden = true;
       content.innerHTML =
@@ -246,7 +267,6 @@
       ? "1 game" : games.length + " games";
     subEl.hidden = false;
 
-    // Games are authored newest-first in the JSON, so array order is display order.
     var html = '<ul class="games">';
     for(var i = 0; i < games.length; i++){
       var g = games[i];
